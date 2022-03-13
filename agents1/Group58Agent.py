@@ -28,6 +28,7 @@ class Group58Agent(BW4TBrain):
         self._teamMembers = []
         self._visited = {}
         self._doors = []
+        self._goal = []
 
     def initialize(self):
         super().initialize()
@@ -42,6 +43,9 @@ class Group58Agent(BW4TBrain):
         return state
 
     def decide_on_bw4t_action(self, state: State):
+        if len(self._doors) == 0 and len(self._goal) == 0:
+            self.initializeParametersOnState(state)
+
         agent_name = state[self.agent_id]["obj_id"]
         # Add team members
         for member in state["World"]["team_members"]:
@@ -51,23 +55,15 @@ class Group58Agent(BW4TBrain):
         receivedMessages = self._processMessages(self._teamMembers)
         # Update trust beliefs for team members
         self._trustBlief(self._teamMembers, receivedMessages)
-        # Update doors if not set.
-        if (len(self._doors) == 0):
-            self._doors = [
-                    door
-                    for door in state.values()
-                    if "class_inheritance" in door
-                    and "Door" in door["class_inheritance"]
-                    and not door["is_open"]
-                ]
 
         while True:
-            print(self._phase)
             if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
                 self._navigator.reset_full()
                 # Randomly pick a closed door
                 self._door = self._chooseDoor()
-                if (self._door == None):
+                if (self._door == None):\
+                    #Program ends here currently
+                    print(self._visited)
                     return None, {}
                 doorLoc = self._door["location"]
                 # Location in front of door is south from door
@@ -103,9 +99,26 @@ class Group58Agent(BW4TBrain):
      
                 return self._visitRoom(self._door, state)
 
-                
+    # Initialize doors and goal
+    def initializeParametersOnState(self, state: State):
+        self._goal = [
+            block
+            for block in state.values()
+            if "class_inheritance" in block
+            and "GhostBlock" in block["class_inheritance"]
+        ]
+        self._doors = [
+            door
+            for door in state.values()
+            if "class_inheritance" in door
+            and "Door" in door["class_inheritance"]
+            and not door["is_open"]
+        ]
                 
     # Choose door until all are visited.
+    # TODO make it so that it chooses the first of a queue that can be updated
+    # In beginning queue has all doors that are closed, when all doors open
+    # it should go to doors with goal blocks (so these doors need to be added to queue)
     def _chooseDoor(self):
         if (len(self._visited) <= len(self._doors)):
             for door in self._doors:
@@ -118,6 +131,9 @@ class Group58Agent(BW4TBrain):
 
     # Currently only walks 2 steps forward, records all blocks seen in visibleblocks.
     def _visitRoom(self, door, state : State):
+        self._update_visited(door, state)
+        
+        # move to top of room
         self._navigator.reset_full()
         topLoc = door["location"]
         topLoc = topLoc[0], topLoc[1] - 2
@@ -125,8 +141,28 @@ class Group58Agent(BW4TBrain):
         self._state_tracker.update(state)
         action = self._navigator.get_move_action(self._state_tracker)
 
+        if (action != None):
+            self._phase = Phase.SEARCH_ROOM
+            return action, {}
+
+        # move one to left
+        self._navigator.reset_full()
+        topLoc = door["location"]
+        topLoc = topLoc[0] - 1, topLoc[1] - 2
+        self._navigator.add_waypoints([topLoc])
+        self._state_tracker.update(state)
+        action = self._navigator.get_move_action(self._state_tracker)
+
+        if (action != None):
+            return action, {}
+
+        return None, {}
+        # reached destination
+
+    # Update the blocks seen in room
+    def _update_visited(self, door, state):
         visibleblocks = [
-                    block
+                    block["visualization"]
                     for block in state.values()
                     if "class_inheritance" in block
                     and "CollectableBlock" in block["class_inheritance"]
@@ -137,17 +173,7 @@ class Group58Agent(BW4TBrain):
         if self._visited.get(key) == None:
              self._visited[key] = []
 
-        self._visited[key] = [] # TODO add all blocks to visited room in dictionary
-
-        print(action)
-        if (action != None):
-            self._phase = Phase.SEARCH_ROOM
-            return action, {}
-
-        return None, {}
-        # reached destination
-
-
+        self._visited[key].extend(visibleblocks)
 
 
     def _sendMessage(self, mssg, sender):
