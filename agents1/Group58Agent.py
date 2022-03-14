@@ -110,7 +110,7 @@ class Group58Agent(BW4TBrain):
             if Phase.DROP_GOAL_BLOCK == self._phase:
                 location = self._goal[0]["location"]
                 action, x = self._get_navigation_action(location, state)
-                if (action != None):
+                if action is not None:
                     self._phase = Phase.DROP_GOAL_BLOCK
                     return action, x
 
