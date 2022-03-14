@@ -2,10 +2,9 @@ import enum
 from typing import Dict
 
 import numpy as np
-from matrx import utils
 from matrx.actions.door_actions import OpenDoorAction
 from matrx.actions.object_actions import GrabObject, DropObject
-from matrx.agents.agent_utils.navigator import Navigator
+from matrx.agents.agent_utils.navigator import Navigator, AStarPlanner
 from matrx.agents.agent_utils.state import State
 from matrx.agents.agent_utils.state_tracker import StateTracker
 from matrx.messages.message import Message
@@ -135,20 +134,22 @@ class Group58Agent(BW4TBrain):
                and not door["is_open"]
         ]
 
+    def _path_distance(self, state, room):
+        state_tracker = StateTracker(self.agent_id)
+        occupation_map, _ = state_tracker.get_traversability_map(inverted=True, state=state)
+        navigator_temp = AStarPlanner(state[self.agent_id]["action_set"])
+        return len(navigator_temp.plan(state[self.agent_id]["location"], (room["location"][0], room["location"][1] + 1),
+                                       occupation_map))
+
     # returns doors ordered by distance to the agent
     def _get_doors_by_distance(self, state):
         agent_coords = state[self.agent_id]["location"]
 
         rooms = np.array(state.get_with_property({"class_inheritance": "Door", "room_name": None}, combined=True))
 
-        def distance(x):
-            room_coords = x['location']
-            return utils.get_distance(agent_coords, room_coords)
-
         # order rooms by distance
-        distances = np.array(list(map(distance, rooms)))
         for i, room in enumerate(rooms):
-            room["distance"] = distances[i]
+            room["distance"] = self._path_distance(state, room)
         return sorted(rooms, key=lambda x: x["distance"], reverse=False)
 
     # Choose door until all are visited.
@@ -166,7 +167,7 @@ class Group58Agent(BW4TBrain):
         return None
 
     # Visit room and record all blocks seen in visibleblocks.
-    def _visit_room(self, door, state : State):
+    def _visit_room(self, door, state: State):
         action, x = self._update_visited(door, state)
         if (action != None):
             return action, x
@@ -219,22 +220,20 @@ class Group58Agent(BW4TBrain):
     # Check if blocks in surrounding are goal block.
     def _check_goal_block(self, state):
         blocks = [
-                    block
-                    for block in state.values()
-                    if "class_inheritance" in block
-                    and "CollectableBlock" in block["class_inheritance"]
-                ]
+            block
+            for block in state.values()
+            if "class_inheritance" in block
+               and "CollectableBlock" in block["class_inheritance"]
+        ]
         if (len(blocks) > 0):
-            if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"] 
-                and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
-                
+            if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"]
+                    and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
                 self._phase = Phase.FOUND_GOAL_BLOCK
                 self._carrying = blocks[0]
-                
+
                 return GrabObject.__name__, {"object_id": blocks[0]["obj_id"]}
 
         return None, {}
-
 
     def _sendMessage(self, mssg, sender):
         """
