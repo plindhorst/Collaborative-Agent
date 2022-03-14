@@ -96,7 +96,7 @@ class Group58Agent(BW4TBrain):
                 return OpenDoorAction.__name__, {"object_id": self._door["obj_id"]}
 
             if Phase.SEARCH_ROOM == self._phase:
-                # TODO: walk through the whole room and observe what kind of objects are there
+                # Walk through the whole room and observe what kind of objects are there
                 return self._visit_room(self._door, state)
 
             if Phase.FOUND_GOAL_BLOCK == self._phase:
@@ -225,7 +225,9 @@ class Group58Agent(BW4TBrain):
                     and "CollectableBlock" in block["class_inheritance"]
                 ]
         if (len(blocks) > 0):
-            if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"] and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
+            if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"] 
+                and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
+                
                 self._phase = Phase.FOUND_GOAL_BLOCK
                 self._carrying = blocks[0]
                 
