@@ -103,8 +103,6 @@ class Group58Agent(BW4TBrain):
 
             if Phase.SEARCH_ROOM == self._phase:
                 # TODO: walk through the whole room and observe what kind of objects are there
-                self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
-     
                 return self._visitRoom(self._door, state)
 
     # Initialize doors and goal
@@ -153,35 +151,36 @@ class Group58Agent(BW4TBrain):
 
         return None
 
-    # Currently only walks 2 steps forward, records all blocks seen in visibleblocks.
+    # Visit room and record all blocks seen in visibleblocks.
     def _visitRoom(self, door, state : State):
         self._update_visited(door, state)
-        
-        # move to top of room
+        doorLocation = door["location"]
+        selfLocation = state[self.agent_id]["location"]
+
+        self._phase = Phase.SEARCH_ROOM
+        # Top to bottom approach
+        # Final step
+        if (selfLocation == (doorLocation[0] - 1, doorLocation[1] - 2)):
+            self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+
+            nextLocation = doorLocation[0] - 1, doorLocation[1] - 1
+            return self._get_navigation_action(nextLocation, state)
+        # Second step
+        elif (selfLocation == (doorLocation[0], doorLocation[1] - 2)):
+            nextLocation = doorLocation[0] - 1, doorLocation[1] - 2
+            return self._get_navigation_action(nextLocation, state)
+        # First step
+        else:
+            nextLocation = doorLocation[0], doorLocation[1] - 2
+            return self._get_navigation_action(nextLocation, state)
+
+    # Get action for navigation
+    def _get_navigation_action(self, location, state):
         self._navigator.reset_full()
-        topLoc = door["location"]
-        topLoc = topLoc[0], topLoc[1] - 2
-        self._navigator.add_waypoints([topLoc])
+        self._navigator.add_waypoints([location])
         self._state_tracker.update(state)
-        action = self._navigator.get_move_action(self._state_tracker)
-
-        if (action != None):
-            self._phase = Phase.SEARCH_ROOM
-            return action, {}
-
-        # move one to left
-        self._navigator.reset_full()
-        topLoc = door["location"]
-        topLoc = topLoc[0] - 1, topLoc[1] - 2
-        self._navigator.add_waypoints([topLoc])
-        self._state_tracker.update(state)
-        action = self._navigator.get_move_action(self._state_tracker)
-
-        if (action != None):
-            return action, {}
-
-        return None, {}
-        # reached destination
+        return self._navigator.get_move_action(self._state_tracker), {}
+    
 
     # Update the blocks seen in room
     def _update_visited(self, door, state):
