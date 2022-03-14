@@ -64,7 +64,7 @@ class Group58Agent(BW4TBrain):
             if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
                 self._navigator.reset_full()
                 # Randomly pick a closed door
-                self._door = self._chooseDoor(state)
+                self._door = self._choose_door(state)
                 if self._door is None:
                     # Program ends here currently
                     print(self._visited)
@@ -133,7 +133,7 @@ class Group58Agent(BW4TBrain):
     # TODO make it so that it chooses the first of a queue that can be updated
     # In beginning queue has all doors that are closed, when all doors open
     # it should go to doors with goal blocks (so these doors need to be added to queue)
-    def _chooseDoor(self, state):
+    def _choose_door(self, state):
         if len(self._visited) <= len(self._doors):
             for door in self._get_doors_by_distance(state):
                 if len(self._visited) == 0:
