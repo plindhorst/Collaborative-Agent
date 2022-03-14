@@ -134,6 +134,7 @@ class Group58Agent(BW4TBrain):
                and not door["is_open"]
         ]
 
+    # uses the path planer to compute the distance agent->room door
     def _path_distance(self, state, room):
         state_tracker = StateTracker(self.agent_id)
         occupation_map, _ = state_tracker.get_traversability_map(inverted=True, state=state)
