@@ -4,6 +4,7 @@ from typing import Dict
 import numpy as np
 from matrx import utils
 from matrx.actions.door_actions import OpenDoorAction
+from matrx.actions.object_actions import GrabObject, DropObject
 from matrx.agents.agent_utils.navigator import Navigator
 from matrx.agents.agent_utils.state import State
 from matrx.agents.agent_utils.state_tracker import StateTracker
@@ -30,6 +31,7 @@ class Group58Agent(BW4TBrain):
         self._visited = {}
         self._doors = []
         self._goal = []
+        self._carrying = None
         self._state_tracker = None
         self._navigator = None
         self._door = None
@@ -94,8 +96,28 @@ class Group58Agent(BW4TBrain):
                 return OpenDoorAction.__name__, {"object_id": self._door["obj_id"]}
 
             if Phase.SEARCH_ROOM == self._phase:
-                # TODO: walk through the whole room and observe what kind of objects are there
+                # Walk through the whole room and observe what kind of objects are there
                 return self._visit_room(self._door, state)
+
+            if Phase.FOUND_GOAL_BLOCK == self._phase:
+                # Assign goal block to variable?
+                self._phase = Phase.PICK_UP_GOAL_BLOCK
+
+            if Phase.PICK_UP_GOAL_BLOCK == self._phase:
+                # Do something
+                self._phase = Phase.DROP_GOAL_BLOCK
+
+            if Phase.DROP_GOAL_BLOCK == self._phase:
+                location = self._goal[0]["location"]
+                action, x = self._get_navigation_action(location, state)
+                if action is not None:
+                    self._phase = Phase.DROP_GOAL_BLOCK
+                    return action, x
+
+                self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+                self._goal.pop(0)
+
+                return DropObject.__name__, {}
 
     # Initialize doors and goal
     def init_state(self, state: State):
@@ -144,8 +166,11 @@ class Group58Agent(BW4TBrain):
         return None
 
     # Visit room and record all blocks seen in visibleblocks.
-    def _visit_room(self, door, state: State):
-        self._update_visited(door, state)
+    def _visit_room(self, door, state : State):
+        action, x = self._update_visited(door, state)
+        if (action != None):
+            return action, x
+
         door_location = door["location"]
         self_location = state[self.agent_id]["location"]
 
@@ -188,6 +213,28 @@ class Group58Agent(BW4TBrain):
             self._visited[key] = []
 
         self._visited[key].extend(visibleblocks)
+
+        return self._check_goal_block(state)
+
+    # Check if blocks in surrounding are goal block.
+    def _check_goal_block(self, state):
+        blocks = [
+                    block
+                    for block in state.values()
+                    if "class_inheritance" in block
+                    and "CollectableBlock" in block["class_inheritance"]
+                ]
+        if (len(blocks) > 0):
+            if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"] 
+                and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
+                
+                self._phase = Phase.FOUND_GOAL_BLOCK
+                self._carrying = blocks[0]
+                
+                return GrabObject.__name__, {"object_id": blocks[0]["obj_id"]}
+
+        return None, {}
+
 
     def _sendMessage(self, mssg, sender):
         """
