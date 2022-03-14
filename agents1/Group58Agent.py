@@ -127,24 +127,24 @@ class Group58Agent(BW4TBrain):
     # Visit room and record all blocks seen in visibleblocks.
     def _visitRoom(self, door, state : State):
         self._update_visited(door, state)
-        dl = door["location"]
-        sl = state[self.agent_id]["location"]
+        doorLocation = door["location"]
+        selfLocation = state[self.agent_id]["location"]
 
         self._phase = Phase.SEARCH_ROOM
         # Top to bottom approach
         # Final step
-        if (sl == (dl[0] - 1, dl[1] - 2)):
+        if (selfLocation == (doorLocation[0] - 1, doorLocation[1] - 2)):
             self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
 
-            nextLocation = dl[0] - 1, dl[1] - 1
+            nextLocation = doorLocation[0] - 1, doorLocation[1] - 1
             return self._get_navigation_action(nextLocation, state)
         # Second step
-        elif (sl == (dl[0], dl[1] - 2)):
-            nextLocation = dl[0] - 1, dl[1] - 2
+        elif (selfLocation == (doorLocation[0], doorLocation[1] - 2)):
+            nextLocation = doorLocation[0] - 1, doorLocation[1] - 2
             return self._get_navigation_action(nextLocation, state)
         # First step
         else:
-            nextLocation = dl[0], dl[1] - 2
+            nextLocation = doorLocation[0], doorLocation[1] - 2
             return self._get_navigation_action(nextLocation, state)
 
     # Get action for navigation
