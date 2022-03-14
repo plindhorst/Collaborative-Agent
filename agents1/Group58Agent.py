@@ -93,9 +93,6 @@ class Group58Agent(BW4TBrain):
             if Phase.SEARCH_ROOM == self._phase:
                 # TODO: walk through the whole room and observe what kind of objects are there
                 self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
-                if (not self._door["is_open"]):
-                    self._door["is_open"] = True
-                    return None, {}
      
                 return self._visitRoom(self._door, state)
 
