@@ -1,14 +1,25 @@
-from os import stat
-from typing import final, List, Dict, Final
+from typing import Dict
 import enum
-import random
 from bw4t.BW4TBrain import BW4TBrain
 from matrx.agents.agent_utils.state import State
 from matrx.agents.agent_utils.navigator import Navigator
 from matrx.agents.agent_utils.state_tracker import StateTracker
 from matrx.actions.door_actions import OpenDoorAction
-from matrx.actions.object_actions import GrabObject, DropObject
 from matrx.messages.message import Message
+import numpy as np
+from matrx import utils
+import enum
+from typing import Dict
+
+import numpy as np
+from matrx import utils
+from matrx.actions.door_actions import OpenDoorAction
+from matrx.agents.agent_utils.navigator import Navigator
+from matrx.agents.agent_utils.state import State
+from matrx.agents.agent_utils.state_tracker import StateTracker
+from matrx.messages.message import Message
+
+from bw4t.BW4TBrain import BW4TBrain
 
 
 class Phase(enum.Enum):
@@ -60,7 +71,7 @@ class Group58Agent(BW4TBrain):
             if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
                 self._navigator.reset_full()
                 # Randomly pick a closed door
-                self._door = self._chooseDoor()
+                self._door = self._chooseDoor(state)
                 if (self._door == None):\
                     #Program ends here currently
                     print(self._visited)
@@ -111,14 +122,30 @@ class Group58Agent(BW4TBrain):
             and "Door" in door["class_inheritance"]
             and not door["is_open"]
         ]
-                
+
+    # returns doors ordered by distance to the agent
+    def _get_doors_by_distance(self, state):
+        agent_coords = state[self.agent_id]["location"]
+
+        rooms = np.array(state.get_with_property({"class_inheritance": "Door", "room_name": None}, combined=True))
+
+        def distance(x):
+            room_coords = x['location']
+            return utils.get_distance(agent_coords, room_coords)
+
+        # order rooms by distance
+        distances = np.array(list(map(distance, rooms)))
+        for i, room in enumerate(rooms):
+            room["distance"] = distances[i]
+        return sorted(rooms, key=lambda x: x["distance"], reverse=False)
+
     # Choose door until all are visited.
     # TODO make it so that it chooses the first of a queue that can be updated
     # In beginning queue has all doors that are closed, when all doors open
     # it should go to doors with goal blocks (so these doors need to be added to queue)
-    def _chooseDoor(self):
+    def _chooseDoor(self, state):
         if (len(self._visited) <= len(self._doors)):
-            for door in self._doors:
+            for door in self._get_doors_by_distance(state):
                 if (len(self._visited) == 0):
                     return door
                 if (len(self._visited) > 0 and door["room_name"] not in self._visited.keys()):
