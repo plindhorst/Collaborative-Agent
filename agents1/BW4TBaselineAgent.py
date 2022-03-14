@@ -1,4 +1,4 @@
-
+from turtle import st
 from typing import final, List, Dict, Final
 import enum, random
 from bw4t.BW4TBrain import BW4TBrain
