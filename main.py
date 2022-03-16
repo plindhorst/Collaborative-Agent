@@ -1,6 +1,6 @@
 from bw4t.BW4TWorld import BW4TWorld
 from bw4t.statistics import Statistics
-from agents1.Group58Agent import Group58Agent
+from Group58Agent.Group58Agent import Group58Agent
 from agents1.BW4TBaselineAgent import BaseLineAgent
 from agents1.BW4THuman import Human
 
