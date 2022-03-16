@@ -65,8 +65,9 @@ class Group58Agent(BW4TBrain):
         if not self.team_members:
             self._initialize_state(state)
 
-        if len(self.goal) == 0 and self.phase != Phase.DROP_GOAL and self.phase != Phase.GRAB_GOAL:
+        if self.phase == Phase.DONE or len(self.goal) == 0 and self.phase != Phase.DROP_GOAL and self.phase != Phase.GRAB_GOAL:
             # print(self.agent_id + ' is done.')
+            self.phase = Phase.DONE
             return move_to(self, (1, 1), state)
 
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self.phase:
@@ -141,8 +142,13 @@ class Group58Agent(BW4TBrain):
                             self._door = None
                             return move_to(self, (self._grabed_block["location"][0], self._grabed_block["location"][1]),
                                            state)
-                else:
                     self.phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+                    return None, {}
+                else:
+                    if len(self.visited) == len(self.doors):
+                        self.phase = Phase.DONE
+                    else:
+                        self.phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
                     return None, {}
             else:
                 return move_to(self, self._door["location"], state)
@@ -162,6 +168,7 @@ class Group58Agent(BW4TBrain):
                 self.phase = Phase.FIND_GOAL
                 self._door = None
                 # TODO: make sure that previous goal block was dropped
+                # TODO: fix problem with goal zone duplicates
                 return DropObject.__name__, {}
             else:
                 return move_to(self, self.goal_dropzone["location"], state)

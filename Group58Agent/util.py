@@ -22,6 +22,7 @@ def move_to(agent, location, state):
 
 
 class Phase(enum.Enum):
+    DONE = 0
     PLAN_PATH_TO_CLOSED_DOOR = (1,)
     FOLLOW_PATH_TO_CLOSED_DOOR = (2,)
     OPEN_DOOR = 3
