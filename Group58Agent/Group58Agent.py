@@ -73,8 +73,9 @@ class Group58Agent(BW4TBrain):
             self._door = choose_door(self, state)
             if self._door is not None:
                 # Send message of current action
-                my_action = '{ "agent_name":"' + self.agent_id + '", "action":"MOVE_TO_ROOM", "room_name":"' + self._door[
-                    "room_name"] + '"}'
+                my_action = '{ "agent_name":"' + self.agent_id + '", "action":"MOVE_TO_ROOM", "room_name":"' + \
+                            self._door[
+                                "room_name"] + '"}'
                 send_msg(self, my_action, self.agent_id)
 
                 if can_move(self, json.loads(my_action)):
@@ -138,7 +139,8 @@ class Group58Agent(BW4TBrain):
                             my_action = '{ "agent_name":"' + self.agent_id + '", "action":"GRABBED_BLOCK"}'
                             send_msg(self, my_action, self.agent_id)
                             self._door = None
-                            return move_to(self, block["location"], state)
+                            return move_to(self, (self._grabed_block["location"][0], self._grabed_block["location"][1]),
+                                           state)
                 else:
                     self.phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
                     return None, {}
@@ -147,7 +149,8 @@ class Group58Agent(BW4TBrain):
 
         if Phase.GRAB_GOAL == self.phase:
             self.state_tracker.update(state)
-            if state[self.agent_id]["location"] == (self._grabed_block["location"][0], self._grabed_block["location"][1]):
+            if state[self.agent_id]["location"] == (
+            self._grabed_block["location"][0], self._grabed_block["location"][1]):
                 self.phase = Phase.DROP_GOAL
                 return GrabObject.__name__, {"object_id": self._grabed_block["obj_id"]}
             else:

@@ -161,8 +161,6 @@ class BW4TWorld:
                 colour_property = self._worldsettings['block_colors'][random.randint(0, 2)]
                 shape_property = self._worldsettings['block_shapes'][random.randint(0, 2)]
 
-                #self._worldsettings['block_colors'][random.randint(0, 2)])
-
                 # Add the block; a regular SquareBlock as denoted by the given 'callable_class' which the
                 # builder will use to create the object. In addition to setting MATRX properties, we also
                 # provide a `is_block` boolean as custom property so we can identify this as a collectible
@@ -263,8 +261,8 @@ class BW4TWorld:
             # Go through all needed blocks
             for nr_block in range(self._worldsettings['nr_blocks_needed']):
                 # Create a MATRX random property of shape and color so each world contains different blocks to collect
-                colour_property = RandomProperty(values=self._worldsettings['block_colors'])
-                shape_property = RandomProperty(values=self._worldsettings['block_shapes'])
+                colour_property = self._worldsettings['block_colors'][random.randint(0, 2)]
+                shape_property = self._worldsettings['block_shapes'][random.randint(0, 2)]
 
                 # Add a 'ghost image' of the block that should be collected. This can be seen by both humans and agents to
                 # know what should be collected in what order.
