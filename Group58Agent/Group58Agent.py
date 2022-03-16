@@ -71,19 +71,22 @@ class Group58Agent(BW4TBrain):
 
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self.phase:
             self._door = choose_door(self, state)
+            if self._door is not None:
+                # Send message of current action
+                my_action = '{ "agent_name":"' + self.agent_id + '", "action":"MOVE_TO_ROOM", "room_name":"' + self._door[
+                    "room_name"] + '"}'
+                send_msg(self, my_action, self.agent_id)
 
-            # Send message of current action
-            my_action = '{ "agent_name":"' + self.agent_id + '", "action":"MOVE_TO_ROOM", "room_name":"' + self._door[
-                "room_name"] + '"}'
-            send_msg(self, my_action, self.agent_id)
+                if can_move(self, json.loads(my_action)):
+                    self.phase = Phase.FOLLOW_PATH_TO_CLOSED_DOOR
+                    # Location in front of door is south from door
+                    door_location = self._door["location"][0], self._door["location"][1] + 1
 
-            if can_move(self, json.loads(my_action)):
-                self.phase = Phase.FOLLOW_PATH_TO_CLOSED_DOOR
-                # Location in front of door is south from door
-                door_location = self._door["location"][0], self._door["location"][1] + 1
-
-                self.navigator.add_waypoints([door_location])
+                    self.navigator.add_waypoints([door_location])
+                else:
+                    return None, {}
             else:
+                self.phase = Phase.FIND_GOAL
                 return None, {}
 
         if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self.phase:
