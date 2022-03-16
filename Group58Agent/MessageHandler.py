@@ -8,14 +8,14 @@ def can_move(agent, my_action):
     Process incoming messages and check if we can perform an action without duplicates
     Returns True if we can continue with our initial task
     """
-    if len(agent.received_messages) == 0:
+    if not agent.started and len(agent.received_messages) > 0:
+        agent.started = True
+    if not agent.started:
         return False
     for msg in agent.received_messages:
-        agent.received_messages.remove(msg)
         message = json.loads(msg.content)
-        print(agent.agent_id, message, agent.visited)
         if message["action"] == "MOVE_TO_ROOM":
-            # TODO:self.received_messages.remove(msg)
+            agent.received_messages.remove(msg)
             # Check if we have the same action as another agent
             if message["action"] == "MOVE_TO_ROOM" and my_action is not None and my_action[
                 "action"] == "MOVE_TO_ROOM" and my_action["room_name"] == message[
@@ -32,6 +32,20 @@ def can_move(agent, my_action):
     return True
 
 
+def can_grab(agent, my_action):
+    """
+    check if no one else is grabbing this block
+    """
+    for msg in agent.received_messages:
+        message = json.loads(msg.content)
+        if message["action"] == "DROP_GOAL" and my_action["action"] == "DROP_GOAL" and my_action["location"] == message[
+            "location"]:
+            agent.received_messages.remove(msg)
+            # TODO: make work for more than 2 agents
+            return message["distance"] > my_action["distance"]
+    return True
+
+
 def update_map_info(agent):
     for msg in agent.received_messages:
         message = json.loads(msg.content)
@@ -41,6 +55,9 @@ def update_map_info(agent):
         elif message["action"] == "SEARCH_ROOM":
             agent.received_messages.remove(msg)
             agent.visited[message["room_name"]] = message["room_content"]
+        elif message["action"] == "GRABBED_BLOCK":
+            agent.received_messages.remove(msg)
+            agent.goal.pop(0)
 
 
 def send_msg(agent, msg, sender):

@@ -1,9 +1,7 @@
+from Group58Agent.Group58Agent import Group58Agent
+from agents1.BW4THuman import Human
 from bw4t.BW4TWorld import BW4TWorld
 from bw4t.statistics import Statistics
-from Group58Agent.Group58Agent import Group58Agent
-from agents1.BW4TBaselineAgent import BaseLineAgent
-from agents1.BW4THuman import Human
-
 
 """
 This runs a single session. You have to log in on localhost:3000 and

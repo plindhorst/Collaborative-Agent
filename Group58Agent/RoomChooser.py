@@ -1,25 +1,15 @@
 import numpy as np
-from matrx.agents import StateTracker
-from matrx.agents.agent_utils.navigator import AStarPlanner
-
-
-# uses the path planer to compute the distance agent->room door
-def _path_distance(agent, state, room):
-    state_tracker = StateTracker(agent.agent_id)
-    occupation_map, _ = state_tracker.get_traversability_map(inverted=True, state=state)
-    navigator_temp = AStarPlanner(state[agent.agent_id]["action_set"])
-    return len(
-        navigator_temp.plan(state[agent.agent_id]["location"], (room["location"][0], room["location"][1] + 1),
-                            occupation_map))
-
 
 # returns doors ordered by distance to the agent
+from Group58Agent.util import path
+
+
 def _get_doors_by_distance(agent, state):
     rooms = np.array(state.get_with_property({"class_inheritance": "Door", "room_name": None}, combined=True))
 
     # order rooms by distance
     for i, room in enumerate(rooms):
-        room["distance"] = _path_distance(agent, state, room)
+        room["distance"] = len(path(agent, state, room["location"]))
     return sorted(rooms, key=lambda x: x["distance"], reverse=False)
 
 
