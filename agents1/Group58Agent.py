@@ -1,5 +1,6 @@
 import enum
 from typing import Dict
+import json
 
 import numpy as np
 from matrx.actions.door_actions import OpenDoorAction
@@ -26,7 +27,7 @@ class Group58Agent(BW4TBrain):
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings)
         self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
-        self._teamMembers = []
+        self._team_members = []
         self._visited = {}
         self._doors = []
         self._goal = []
@@ -48,75 +49,80 @@ class Group58Agent(BW4TBrain):
         return state
 
     def decide_on_bw4t_action(self, state: State):
-        if len(self._doors) == 0 and len(self._goal) == 0:
+        if len(self._doors) == 0 and len(self._goal) == 0 and self._team_members == []:
             self.init_state(state)
 
-        agent_name = state[self.agent_id]["obj_id"]
-        # Add team members
-        for member in state["World"]["team_members"]:
-            if member != agent_name and member not in self._teamMembers:
-                self._teamMembers.append(member)
         # Process messages from team members
-        received_messages = self._process_messages(self._teamMembers)
+        # self._process_messages()
         # Update trust beliefs for team members
-        self._trust(self._teamMembers, received_messages)
+        # self._trust(self._teamMembers, received_messages)
 
-        while True:
-            if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-                self._navigator.reset_full()
-                # Randomly pick a closed door
-                self._door = self._choose_door(state)
-                if self._door is None:
-                    # Program ends here currently
-                    print(self._visited)
-                    return None, {}
+        if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
+            self._navigator.reset_full()
+            # Randomly pick a closed door
+            self._door = self._choose_door(state)
+            if self._door is None:
+                # Program ends here currently
+                print(self._visited)
+                return None, {}
+
+            # Send message of current action
+            my_action = '{ "agent_name":"' + self.agent_id + '", "action":"MOVE_TO_ROOM", "room_name":"' + self._door[
+                "room_name"] + '"}'
+            self._send_message(my_action, self.agent_id)
+
+            if self._process_messages(json.loads(my_action)):
+                self._phase = Phase.FOLLOW_PATH_TO_CLOSED_DOOR
                 # Location in front of door is south from door
                 door_location = self._door["location"][0], self._door["location"][1] + 1
-                # Send message of current action
-                self._sendMessage(
-                    "Moving to door of " + self._door["room_name"], agent_name
-                )
                 self._navigator.add_waypoints([door_location])
-                self._phase = Phase.FOLLOW_PATH_TO_CLOSED_DOOR
+            else:
+                return None, {}
 
-            if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
-                self._state_tracker.update(state)
-                # Follow path to door
-                action = self._navigator.get_move_action(self._state_tracker)
-                if action is not None:
-                    return action, {}
-                self._phase = Phase.OPEN_DOOR
+        if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
+            self._state_tracker.update(state)
+            # Follow path to door
+            action = self._navigator.get_move_action(self._state_tracker)
+            if action is not None:
+                return action, {}
+            self._phase = Phase.OPEN_DOOR
 
-            if Phase.OPEN_DOOR == self._phase:
-                # self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
-                self._phase = Phase.SEARCH_ROOM
-                # Open door
+        if Phase.OPEN_DOOR == self._phase:
+            # self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+            self._phase = Phase.SEARCH_ROOM
+            # Open door
 
-                return OpenDoorAction.__name__, {"object_id": self._door["obj_id"]}
+            return OpenDoorAction.__name__, {"object_id": self._door["obj_id"]}
 
-            if Phase.SEARCH_ROOM == self._phase:
-                # Walk through the whole room and observe what kind of objects are there
-                return self._visit_room(self._door, state)
+        if Phase.SEARCH_ROOM == self._phase:
+            # Walk through the whole room and observe what kind of objects are there
+            action = self._visit_room(self._door, state)
 
-            if Phase.FOUND_GOAL_BLOCK == self._phase:
-                # Assign goal block to variable?
-                self._phase = Phase.PICK_UP_GOAL_BLOCK
+            my_action = '{ "agent_name":"' + self.agent_id + '", "action":"SEARCH_ROOM", "room_name":"' + self._door[
+                "room_name"] + '", "room_content":' + json.dumps(self._visited[self._door["room_name"]]) + '}'
+            self._send_message(my_action, self.agent_id)
 
-            if Phase.PICK_UP_GOAL_BLOCK == self._phase:
-                # Do something
+            return action
+
+        if Phase.FOUND_GOAL_BLOCK == self._phase:
+            # Assign goal block to variable?
+            self._phase = Phase.PICK_UP_GOAL_BLOCK
+
+        if Phase.PICK_UP_GOAL_BLOCK == self._phase:
+            # Do something
+            self._phase = Phase.DROP_GOAL_BLOCK
+
+        if Phase.DROP_GOAL_BLOCK == self._phase:
+            location = self._goal[0]["location"]
+            action, x = self._get_navigation_action(location, state)
+            if action is not None:
                 self._phase = Phase.DROP_GOAL_BLOCK
+                return action, x
 
-            if Phase.DROP_GOAL_BLOCK == self._phase:
-                location = self._goal[0]["location"]
-                action, x = self._get_navigation_action(location, state)
-                if action is not None:
-                    self._phase = Phase.DROP_GOAL_BLOCK
-                    return action, x
+            self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+            self._goal.pop(0)
 
-                self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
-                self._goal.pop(0)
-
-                return DropObject.__name__, {}
+            return DropObject.__name__, {}
 
     # Initialize doors and goal
     def init_state(self, state: State):
@@ -133,6 +139,7 @@ class Group58Agent(BW4TBrain):
                and "Door" in door["class_inheritance"]
                and not door["is_open"]
         ]
+        self._team_members = state["World"]["team_members"]
 
     # uses the path planer to compute the distance agent->room door
     def _path_distance(self, state, room):
@@ -144,8 +151,6 @@ class Group58Agent(BW4TBrain):
 
     # returns doors ordered by distance to the agent
     def _get_doors_by_distance(self, state):
-        agent_coords = state[self.agent_id]["location"]
-
         rooms = np.array(state.get_with_property({"class_inheritance": "Door", "room_name": None}, combined=True))
 
         # order rooms by distance
@@ -170,7 +175,7 @@ class Group58Agent(BW4TBrain):
     # Visit room and record all blocks seen in visibleblocks.
     def _visit_room(self, door, state: State):
         action, x = self._update_visited(door, state)
-        if (action != None):
+        if action is not None:
             return action, x
 
         door_location = door["location"]
@@ -214,7 +219,8 @@ class Group58Agent(BW4TBrain):
         if self._visited.get(key) is None:
             self._visited[key] = []
 
-        self._visited[key].extend(visibleblocks)
+        for block in visibleblocks:
+            self._visited[key].append({"colour": block["colour"], "shape": block["shape"]})
 
         return self._check_goal_block(state)
 
@@ -226,7 +232,7 @@ class Group58Agent(BW4TBrain):
             if "class_inheritance" in block
                and "CollectableBlock" in block["class_inheritance"]
         ]
-        if (len(blocks) > 0):
+        if len(blocks) > 0:
             if (blocks[0]["visualization"]["colour"] == self._goal[0]["visualization"]["colour"]
                     and blocks[0]["visualization"]["shape"] == self._goal[0]["visualization"]["shape"]):
                 self._phase = Phase.FOUND_GOAL_BLOCK
@@ -236,7 +242,7 @@ class Group58Agent(BW4TBrain):
 
         return None, {}
 
-    def _sendMessage(self, mssg, sender):
+    def _send_message(self, mssg, sender):
         """
         Enable sending messages in one line of code
         """
@@ -244,18 +250,36 @@ class Group58Agent(BW4TBrain):
         if msg.content not in self.received_messages:
             self.send_message(msg)
 
-    def _process_messages(self, teamMembers):
+    def _process_messages(self, my_action=None):
         """
-        Process incoming messages and create a dictionary with received messages from each team member.
+        Process incoming messages and check if we can perform an action without duplicates
+        Returns True if we can continue with our initial task
         """
-        received_messages = {}
-        for member in teamMembers:
-            received_messages[member] = []
-        for mssg in self.received_messages:
-            for member in teamMembers:
-                if mssg.from_id == member:
-                    received_messages[member].append(mssg.content)
-        return received_messages
+        if len(self.received_messages) == 0:
+            return False
+        for msg in self.received_messages:
+            self.received_messages.remove(msg)
+            message = json.loads(msg.content)
+            # print(self.agent_id, message)
+            if message["action"] == "MOVE_TO_ROOM":
+                # Check if we have the same action as another agent
+                if message["action"] == "MOVE_TO_ROOM" and my_action["action"] == "MOVE_TO_ROOM" and message[
+                    "room_name"] == my_action["room_name"]:
+                    # Choose other agent if he has higher index
+                    if self._team_members.index(my_action["agent_name"]) > self._team_members.index(
+                            message["agent_name"]):
+                        if self._visited.get(message["room_name"]) is None:
+                            self._visited[message["room_name"]] = []
+                        return False
+                else:
+                    if self._visited.get(message["room_name"]) is None:
+                        self._visited[message["room_name"]] = []
+            elif message["action"] == "SEARCH_ROOM":
+                self._visited[message["room_name"]] = message["room_content"]
+
+        return True
+        # TODO:delete messages
+        # self.received_messages = []
 
     def _trust(self, member, received):
         """
