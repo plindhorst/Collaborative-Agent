@@ -9,11 +9,6 @@ def visit_room(agent, door, state):
     self_location = state[agent.agent_id]["location"]
 
     agent.phase = Phase.SEARCH_ROOM
-    # if self_location == (door_location[0] - 2, door_location[1] - 1):
-    #     _update_visited(agent, door, state)
-    #     agent.phase = Phase.GOAL_BLOCK
-    #     next_location = door_location[0], door_location[1]
-    #     return get_navigation_action(agent, next_location, state)
     if self_location == (door_location[0] - 1, door_location[1] - 1):
         _update_visited(agent, door, state)
         agent.phase = Phase.FIND_GOAL

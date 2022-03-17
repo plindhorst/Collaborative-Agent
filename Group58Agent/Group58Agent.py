@@ -28,7 +28,7 @@ class Group58Agent(BW4TBrain):
         self.state_tracker = None
         self.navigator = None
         self._door = None
-        self._grabed_block = None
+        self._grabbed_block = None
         self.goal_dropzone = None
 
     def initialize(self):
@@ -46,10 +46,12 @@ class Group58Agent(BW4TBrain):
     # Initialize doors and goal
     def _initialize_state(self, state):
         self.goal = []
+        i = 0
         for block in state.values():
             if "class_inheritance" in block and "GhostBlock" in block["class_inheritance"]:
                 self.goal.append({"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
-                                  "location": block["location"]})
+                                  "location": block["location"], "delivered": False, "grabbed": False, "n": i})
+                i += 1
 
         self.doors = [
             door
@@ -60,12 +62,25 @@ class Group58Agent(BW4TBrain):
         ]
         self.team_members = state["World"]["team_members"]
 
+    # return the next goal to be delivered
+    # if all goals were delievered return None
+    def get_next_goal(self):
+        for block in self.goal:
+            if not block["delivered"] and not block["grabbed"]:
+                return block
+        return None
+
     # Choose action to perform
     def decide_on_bw4t_action(self, state: State):
         if not self.team_members:
+            # we initialise our map and goal arrays
             self._initialize_state(state)
 
-        if self.phase == Phase.DONE or len(self.goal) == 0 and self.phase != Phase.DROP_GOAL and self.phase != Phase.GRAB_GOAL:
+        self.state_tracker.update(state)
+
+        # if all doors have been opened
+        # TODO: phase done also when all doors have been opened and no goals blocks found
+        if self.phase == Phase.DONE or (self.get_next_goal() is None and self._grabbed_block is None):
             # print(self.agent_id + ' is done.')
             self.phase = Phase.DONE
             return move_to(self, (1, 1), state)
@@ -93,7 +108,6 @@ class Group58Agent(BW4TBrain):
 
         if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self.phase:
             update_map_info(self)
-            self.state_tracker.update(state)
             # Follow path to door
             action = self.navigator.get_move_action(self.state_tracker)
             if action is not None:
@@ -107,7 +121,6 @@ class Group58Agent(BW4TBrain):
             return OpenDoorAction.__name__, {"object_id": self._door["obj_id"]}
 
         if Phase.SEARCH_ROOM == self.phase:
-            self.state_tracker.update(state)
             update_map_info(self)
             # Walk through the whole room and observe what kind of objects are there
             action = visit_room(self, self._door, state)
@@ -119,29 +132,31 @@ class Group58Agent(BW4TBrain):
             return action
 
         if Phase.FIND_GOAL == self.phase:
-            self.state_tracker.update(state)
             update_map_info(self)
-            if self._door is None or state[self.agent_id]["location"] == self._door[
-                "location"]:  # check if we can look for goals
+            if self._door is None or state[self.agent_id]["location"] == self._door["location"]:
                 goal_blocks = find_goal_blocks(self, state)
-                if goal_blocks is not None and len(goal_blocks) > 0:
-                    for block in goal_blocks:
-                        my_action = '{ "agent_name":"' + self.agent_id + '", "action":"DROP_GOAL", "location": [' + str(
-                            block["location"][0]) + ', ' + str(block["location"][1]) + ' ], "distance":' + str(
-                            block["distance"]) + '}'
+                if goal_blocks is not None:
+                    goal_block = goal_blocks[0]
+                    my_action = '{ "agent_name":"' + self.agent_id + '", "action":"DROP_GOAL", "location": [' + str(
+                        goal_block["location"][0]) + ', ' + str(
+                        goal_block["location"][1]) + '] , "distance":' + str(
+                        goal_block["distance"]) + '}'
+                    send_msg(self, my_action, self.agent_id)
+                    if can_grab(self, json.loads(my_action)):
+                        self._grabbed_block = goal_block
+                        # Remove goal from list
+                        self.goal_dropzone = self.get_next_goal()
+                        self.goal_dropzone["grabbed"] = True
+                        self.phase = Phase.GRAB_GOAL
+                        # Send message of current action
+                        my_action = '{ "agent_name":"' + self.agent_id + '", "action":"GRABBED_BLOCK", "location": [' + str(
+                            goal_block["location"][0]) + ', ' + str(
+                            goal_block["location"][1]) + '] , "room_name": "' + str(
+                            goal_block["room_name"]) + '", "goal_idx":' + str(self.goal_dropzone["n"]) + '}'
                         send_msg(self, my_action, self.agent_id)
-                        if can_grab(self, json.loads(my_action)):
-                            self.goal_dropzone = self.goal[0]
-                            self._grabed_block = block
-                            # Remove goal from list
-                            self.goal.pop(0)
-                            self.phase = Phase.GRAB_GOAL
-                            # Send message of current action
-                            my_action = '{ "agent_name":"' + self.agent_id + '", "action":"GRABBED_BLOCK"}'
-                            send_msg(self, my_action, self.agent_id)
-                            self._door = None
-                            return move_to(self, (self._grabed_block["location"][0], self._grabed_block["location"][1]),
-                                           state)
+                        self._door = None
+                        return move_to(self, (goal_block["location"][0], goal_block["location"][1]), state)
+                    # if we do not grab anything keep room searching
                     self.phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
                     return None, {}
                 else:
@@ -154,21 +169,35 @@ class Group58Agent(BW4TBrain):
                 return move_to(self, self._door["location"], state)
 
         if Phase.GRAB_GOAL == self.phase:
-            self.state_tracker.update(state)
             if state[self.agent_id]["location"] == (
-            self._grabed_block["location"][0], self._grabed_block["location"][1]):
+                    self._grabbed_block["location"][0], self._grabbed_block["location"][1]):
                 self.phase = Phase.DROP_GOAL
-                return GrabObject.__name__, {"object_id": self._grabed_block["obj_id"]}
+                # Remove block from room array
+                new_array = []
+                for old_block in self.visited[self._grabbed_block["room_name"]]:
+                    if old_block["location"] != self._grabbed_block["location"]:
+                        new_array.append(old_block)
+                self.visited[self._grabbed_block["room_name"]] = new_array
+                return GrabObject.__name__, {"object_id": self._grabbed_block["obj_id"]}
             else:
-                return move_to(self, (self._grabed_block["location"][0], self._grabed_block["location"][1]), state)
+                return move_to(self, (self._grabbed_block["location"][0], self._grabbed_block["location"][1]), state)
 
         if Phase.DROP_GOAL == self.phase:
-            self.state_tracker.update(state)
-            if state[self.agent_id]["location"] == self.goal_dropzone["location"]:
+            update_map_info(self)
+            # check if we are on location and if we bring the first block or the previous block was delivered
+            if state[self.agent_id]["location"] == self.goal_dropzone["location"] and (
+                    self.goal_dropzone["n"] == 0 or self.goal[self.goal_dropzone["n"] - 1]["delivered"]):
                 self.phase = Phase.FIND_GOAL
                 self._door = None
-                # TODO: make sure that previous goal block was dropped
-                # TODO: fix problem with goal zone duplicates
+                self.goal_dropzone["delivered"] = True
+
+                my_action = '{ "agent_name":"' + self.agent_id + '", "action":"DELIVERED_BLOCK", "goal_idx":' + str(
+                    self.goal_dropzone["n"]) + '}'
+                send_msg(self, my_action, self.agent_id)
+
+                self._grabbed_block = None
+                self.goal_dropzone = None
+
                 return DropObject.__name__, {}
             else:
                 return move_to(self, self.goal_dropzone["location"], state)

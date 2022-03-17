@@ -29,6 +29,8 @@ def can_move(agent, my_action):
             else:
                 if agent.visited.get(message["room_name"]) is None:
                     agent.visited[message["room_name"]] = []
+                else:
+                    return False
     return True
 
 
@@ -46,6 +48,7 @@ def can_grab(agent, my_action):
     return True
 
 
+#  we update our map and goals according to messages from other agents
 def update_map_info(agent):
     for msg in agent.received_messages:
         message = json.loads(msg.content)
@@ -57,7 +60,18 @@ def update_map_info(agent):
             agent.visited[message["room_name"]] = message["room_content"]
         elif message["action"] == "GRABBED_BLOCK":
             agent.received_messages.remove(msg)
-            agent.goal.pop(0)
+            # Mark goal as grabbed
+            agent.goal[message["goal_idx"]]["grabbed"] = True
+            # Remove block from room array
+            new_array = []
+            for old_block in agent.visited[message["room_name"]]:
+                if old_block["location"] != message["location"]:
+                    new_array.append(old_block)
+            agent.visited[message["room_name"]] = new_array
+        elif message["action"] == "DELIVERED_BLOCK":
+            agent.received_messages.remove(msg)
+            # Mark goal as delivered
+            agent.goal[message["goal_idx"]]["delivered"] = True
 
 
 def send_msg(agent, msg, sender):

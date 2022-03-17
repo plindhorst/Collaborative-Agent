@@ -5,13 +5,17 @@ def find_goal_blocks(agent, state):
     if len(agent.goal) == 0:
         return None
     available_goal_blocks = []
-    for room in agent.visited:
-        for block in agent.visited[room]:
-            if block["colour"] == agent.goal[0]["colour"] and block["shape"] == agent.goal[0]["shape"]:
+    current_goal = agent.get_next_goal()
+    if current_goal is None:
+        return None
+    for room_name in agent.visited:
+        for block in agent.visited[room_name]:
+            if block["colour"] == current_goal["colour"] and block["shape"] == current_goal["shape"]:
                 coords = path(agent, state, block["location"])
                 if coords != state[agent.agent_id][
                     "location"]:  # if path is same as agent coords then no path was found
                     block["distance"] = len(coords)
+                    block["room_name"] = room_name
                     available_goal_blocks.append(block)
 
     if len(available_goal_blocks) > 0:
