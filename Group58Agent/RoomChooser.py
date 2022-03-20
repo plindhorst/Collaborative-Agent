@@ -1,32 +1,49 @@
 import numpy as np
 
-# returns doors ordered by distance to the agent
 from Group58Agent.util import path
 
 
-def _get_doors_by_distance(agent, state):
-    rooms = np.array(state.get_with_property({"class_inheritance": "Door", "room_name": None}, combined=True))
-
-    # order rooms by distance
-    for i, room in enumerate(rooms):
-        room["distance"] = len(path(agent, state, room["location"]))
-    return sorted(rooms, key=lambda x: x["distance"], reverse=False)
-
-
-# Choose door until all are visited.
-# TODO make it so that it chooses the first of a queue that can be updated
-# In beginning queue has all doors that are closed, when all doors open
-# it should go to doors with goal blocks (so these doors need to be added to queue)
-def choose_door(agent, state):
-    if len(agent.visited) <= len(agent.doors):
-        for door in _get_doors_by_distance(agent, state):
-            if len(agent.visited) == 0:
-                return door
-            if len(agent.visited) > 0 and door["room_name"] not in agent.visited.keys():
-                return door
-
-    return None
-
-
 class RoomChooser:
-    pass
+    def __init__(self, agent):
+        self.agent = agent
+
+    # Returns closest non-visited room and distance
+    def choose_room(self, agent_id):
+        unvisited = self._get_unvisited_rooms()
+
+        if len(unvisited) == 0:
+            return None, None
+        # order rooms by distance
+        distances = []
+        for room in unvisited:
+            start_location = self.agent.state[agent_id]["location"]
+            target_location = room["location"]
+            distances.append(len(path(agent_id, self.agent.state, start_location, target_location)))
+        idx = np.argsort(distances)
+        return np.array(unvisited)[idx][0], np.array(distances)[idx][0]
+
+    # Returns true if another agent chose this room and is closer to it
+    def room_conflict(self, room, distance):
+        # Go over all other agents, if we chose the same room take the one closest to it.
+        # In case of draw choose smallest agent_idx
+        for other_agent in self.agent.other_agents:
+            if other_agent["phase"] == "CHOOSE_ROOM" and other_agent["location"] is not None:
+                other_room, other_distance = self.choose_room(other_agent["agent_id"])
+                if room["room_name"] == other_room["room_name"]:
+                    if distance == other_distance:
+                        # choose agent with lowest idx
+                        if self.agent.agent_idx > other_agent["agent_idx"]:
+                            return True
+                    else:
+                        # choose smallest distance
+                        if distance > other_distance:
+                            return True
+        return False
+
+    # Returns all rooms that have not been visited
+    def _get_unvisited_rooms(self):
+        unvisited = []
+        for room in self.agent.rooms:
+            if not room["visited"]:
+                unvisited.append(room)
+        return unvisited
