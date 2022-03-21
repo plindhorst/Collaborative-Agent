@@ -171,7 +171,7 @@ class Group58Agent(BW4TBrain):
             goal_block, distance = self.goal_dropper.find_goal_block(self.agent_id)
 
             # No goal block found
-            if goal_block is None:
+            if self.settings["colourblind"] or goal_block is None:
                 self.phase = Phase.CHOOSE_ROOM
                 return None, {}
 
