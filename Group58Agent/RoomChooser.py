@@ -10,6 +10,7 @@ class RoomChooser:
     # Returns closest non-visited room and distance
     def choose_room(self, agent_id):
         unvisited = self._get_unvisited_rooms()
+        print(unvisited[0])
 
         if len(unvisited) == 0:
             # Look inside rooms not visited by us

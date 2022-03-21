@@ -133,10 +133,9 @@ class Group58Agent(BW4TBrain):
                 self._chosen_room = room
                 self.phase = Phase.GO_TO_ROOM
                 # Mark room as visited
-                room = self.get_room(self._chosen_room["room_name"])
-                room["visited"] = True
-                room["visited_by_me"] = True
-                room["last_agent_id"] = self.agent_id
+                self.get_room(self._chosen_room["room_name"])["visited"] = True
+                self.get_room(self._chosen_room["room_name"])["visited_by_me"] = True
+                self.get_room(self._chosen_room["room_name"])["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
                 return move_to(self, self._chosen_room["location"])
