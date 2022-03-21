@@ -20,6 +20,7 @@ class Group58Agent(BW4TBrain):
         self.state = None
         self.state_tracker = None
         self.navigator = None
+        self.settings = settings
         self.location = (1, 1)
         self.rooms = []
         self.drop_offs = []
