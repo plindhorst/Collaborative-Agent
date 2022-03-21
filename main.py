@@ -14,6 +14,7 @@ if __name__ == "__main__":
         {"name": "agent2", "botclass": Group58Agent, "settings": {"color": "#000000", "shape": 2, "colourblind": False}},
         #{"name": "agent3", "botclass": Group58Agent, "settings": {"color": "#000000", "shape": 0}},
         #{"name": "agent4", "botclass": Group58Agent, "settings": {"color": "#FF0000", "shape": 2}},
+
     ]
 
     print("Started world...")

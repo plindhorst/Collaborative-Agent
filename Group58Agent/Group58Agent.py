@@ -68,7 +68,7 @@ class Group58Agent(BW4TBrain):
             if "class_inheritance" in room and "Door" in room["class_inheritance"]:
                 self.rooms.append(
                     {"room_name": room["room_name"], "location": (room["location"][0], room["location"][1] + 1),
-                     "obj_id": room["obj_id"], "visited": False})
+                     "obj_id": room["obj_id"], "visited": False, "last_agent_id": None, "visited_by_me": False})
 
         # Initialise other_agents array
         for i, agent in enumerate(state["World"]["team_members"]):
@@ -106,7 +106,7 @@ class Group58Agent(BW4TBrain):
 
     # Choose action to perform
     def decide_on_bw4t_action(self, state):
-        if not self.other_agents:
+        if not self.rooms:
             # we initialise our room map and goal array
             self._initialize_state(state)
 
@@ -135,6 +135,8 @@ class Group58Agent(BW4TBrain):
                 # Mark room as visited
                 room = self.get_room(self._chosen_room["room_name"])
                 room["visited"] = True
+                room["visited_by_me"] = True
+                room["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
                 return move_to(self, self._chosen_room["location"])
