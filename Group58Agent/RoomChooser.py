@@ -12,7 +12,11 @@ class RoomChooser:
         unvisited = self._get_unvisited_rooms()
 
         if len(unvisited) == 0:
-            return None, None
+            # Look inside rooms not visited by us
+            unvisited = self._get_unvisited_by_me()
+            if len(unvisited) == 0:
+                # All rooms were visited by us
+                return None, None
         # order rooms by distance
         distances = []
         for room in unvisited:
@@ -50,5 +54,13 @@ class RoomChooser:
         unvisited = []
         for room in self.agent.rooms:
             if not room["visited"]:
+                unvisited.append(room)
+        return unvisited
+
+    # Returns all rooms that have not been visited by us
+    def _get_unvisited_by_me(self):
+        unvisited = []
+        for room in self.agent.rooms:
+            if not room["visited_by_me"]:
                 unvisited.append(room)
         return unvisited
