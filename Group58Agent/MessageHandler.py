@@ -31,13 +31,14 @@ class MessageHandler:
         room_name = msg.content.replace("Moving to ", "")
         room = self.agent.get_room(room_name)
         room["visited"] = True
+        room["last_visited_id"] = msg.from_id
 
     # What to update when receiving a open door message
     def _process_opening_door(self, msg):
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.OPEN_DOOR)
 
-    # What to update when receiving a open door message
+    # What to update when receiving a search room message
     def _process_searching(self, msg):
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.SEARCH_ROOM)
