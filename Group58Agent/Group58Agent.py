@@ -233,6 +233,7 @@ class Group58Agent(BW4TBrain):
             # TODO: check if the block was already grabbed
             if is_on_location(self, self._chosen_goal_block[-1]["location"]):
                 # If the agent is strong and holds less than 2 blocks
+                # and there are were less than 2 pick ups already
                 # search for another goal block next.
                 if (
                     self.settings["strong"]
@@ -250,6 +251,7 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}
                 else:
+                    # Save the ID to later know what to drop
                     self.held_block_ids.append(obj_id)
 
                 # Grab block
@@ -276,13 +278,15 @@ class Group58Agent(BW4TBrain):
                     )
                     # Delete temp vaiables
                     if self.settings["strong"] and len(self.held_block_ids) > 1:
-                        # remove the head of the goal block list
+                        # If the agnet is the strong one remove
+                        # the head of the goal block list, drop_off_nth
                         self._chosen_goal_block.pop(0)
                         self._drop_off_n.pop(0)
                         self.phase = Phase.DROP_GOAL
                     else:
                         self._chosen_goal_block = []
                         self._drop_off_n = []
+                    # pop the ID
                     obj_id = self.held_block_ids.pop(0)
                     return DropObject.__name__, {"object_id": obj_id}
                 else:
