@@ -17,10 +17,10 @@ from bw4t.BW4TBrain import BW4TBrain
 class Group58Agent(BW4TBrain):
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings)
+        self.settings = settings
         self.state = None
         self.state_tracker = None
         self.navigator = None
-        self.settings = settings
         self.location = (1, 1)
         self.rooms = []
         self.drop_offs = []
