@@ -18,12 +18,12 @@ class RoomVisiter:
 
         for i, location in enumerate(locations):
             if is_on_location(self.agent, location):
-                self._update_room(room)
+                self._update_room()
                 if i < len(locations) - 1:
                     return move_to(self.agent, locations[i + 1])
                 else:
                     # We completed the room search
-                    self.agent.phase = Phase.CHOOSE_ROOM
+                    self.agent.phase = Phase.CHOOSE_GOAL
                     # Send goal blocks locations to other agents
                     for goal_block in self.found_goal_blocks:
                         # Add goal block to our agent's blocks
@@ -35,7 +35,7 @@ class RoomVisiter:
                     return move_to(self.agent, locations[0])
 
     # Update the goal blocks seen in agent range
-    def _update_room(self, visited_room):
+    def _update_room(self):
         blocks = self.agent.state.get_with_property({'is_collectable': True})
         if blocks is not None:
             # Go over each block in the field of view
@@ -43,8 +43,8 @@ class RoomVisiter:
                 block = {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
                          "location": block["location"], "size": block["visualization"]["size"]}
                 # Check if the block is a goal block
-                for goal_block in self.agent.goal_blocks:
-                    if block["colour"] == goal_block["colour"] and block["shape"] == goal_block["shape"]:
+                for drop_off in self.agent.drop_offs:
+                    if block["colour"] == drop_off["colour"] and block["shape"] == drop_off["shape"]:
                         if block not in self.found_goal_blocks:
                             self.found_goal_blocks.append(block)
                         break

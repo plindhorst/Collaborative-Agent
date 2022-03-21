@@ -1,4 +1,3 @@
-# Get action for navigation
 import enum
 
 
@@ -16,7 +15,7 @@ class Phase(enum.Enum):
     GO_TO_ROOM = 2
     OPEN_DOOR = 3
     SEARCH_ROOM = 4
-    FIND_GOAL = 5
+    CHOOSE_GOAL = 5
     GRAB_GOAL = 6
     DROP_GOAL = 7
     DONE = 8

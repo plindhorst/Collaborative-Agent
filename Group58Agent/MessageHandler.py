@@ -1,5 +1,7 @@
-from matrx.messages import Message
 import json
+
+from matrx.messages import Message
+
 from Group58Agent.PhaseHandler import Phase
 
 
@@ -12,13 +14,18 @@ class MessageHandler:
         if msg.content not in self.agent.received_messages:
             self.agent.send_message(msg)
 
+    # Update the phase of the other agent in our agent array
+    def _update_other_agent_phase(self, agent_id, phase):
+        # Update sender agent phase
+        for other_agent in self.agent.other_agents:
+            if other_agent["agent_id"] == agent_id:
+                other_agent["phase"] = phase
+                break
+
     # What to update when receiving a move to message
     def _process_move_to(self, msg):
         # Update sender agent phase
-        for other_agent in self.agent.other_agents:
-            if other_agent["agent_id"] == msg.from_id:
-                other_agent["phase"] = Phase.GO_TO_ROOM
-                break
+        self._update_other_agent_phase(msg.from_id, Phase.GO_TO_ROOM)
 
         # Mark room as visited
         room_name = msg.content.replace("Moving to ", "")
@@ -28,26 +35,17 @@ class MessageHandler:
     # What to update when receiving a open door message
     def _process_opening_door(self, msg):
         # Update sender agent phase
-        for other_agent in self.agent.other_agents:
-            if other_agent["agent_id"] == msg.from_id:
-                other_agent["phase"] = Phase.OPEN_DOOR
-                break
+        self._update_other_agent_phase(msg.from_id, Phase.OPEN_DOOR)
 
     # What to update when receiving a open door message
     def _process_searching(self, msg):
         # Update sender agent phase
-        for other_agent in self.agent.other_agents:
-            if other_agent["agent_id"] == msg.from_id:
-                other_agent["phase"] = Phase.SEARCH_ROOM
-                break
+        self._update_other_agent_phase(msg.from_id, Phase.SEARCH_ROOM)
 
     # What to update when receiving a found block message
     def _process_found_goal_block(self, msg):
         # Update sender agent phase
-        for other_agent in self.agent.other_agents:
-            if other_agent["agent_id"] == msg.from_id:
-                other_agent["phase"] = Phase.FIND_GOAL
-                break
+        self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
 
         # Parse message content
         goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
@@ -57,6 +55,43 @@ class MessageHandler:
         # Add goal block to our agent's goal blocks
         if goal_block not in self.agent.found_goal_blocks:
             self.agent.found_goal_blocks.append(goal_block)
+
+    # What to update when receiving a pickup block message
+    def _process_pickup_goal_block(self, msg):
+        # Update sender agent phase
+        self._update_other_agent_phase(msg.from_id, Phase.GRAB_GOAL)
+
+        # Parse message content
+        goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
+        location = json.loads("[" + msg.content[msg.content.index("(") + 1:msg.content.index(")")] + "]")
+        goal_block["location"] = (location[0], location[1])
+
+        # Remove grabbed block from found goal blocks
+        found_goal_blocks = []
+        for old_block in self.agent.found_goal_blocks:
+            if old_block["location"] != goal_block["location"]:
+                found_goal_blocks.append(old_block)
+        self.agent.found_goal_blocks = found_goal_blocks
+        # Update drop off as grabbed
+        self.agent.get_next_drop_off()["grabbed"] = True
+
+    # What to update when receiving a pickup block message
+    def _process_drop_goal_block(self, msg):
+        # Update sender agent phase
+        self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
+
+        # Parse message content
+        goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
+        location = json.loads("[" + msg.content[msg.content.index("(") + 1:msg.content.index(")")] + "]")
+        drop_off_location = (location[0], location[1])
+
+        for drop_off in self.agent.drop_offs:
+            if drop_off["location"] == drop_off_location:
+                drop_off["delivered"] = True
+                return
+
+        # TODO: what happens when the block was not delivered on a drop off? -> lazy agent drops outside
+        print("Goal block " + goal_block + " was dropped outside of drop off")
 
     # Go over received messages and perform updates
     def read_messages(self):
@@ -70,7 +105,10 @@ class MessageHandler:
                     self._process_searching(msg)
                 elif "Found goal block" in msg.content:
                     self._process_found_goal_block(msg)
-
+                elif "Picking up goal block" in msg.content:
+                    self._process_pickup_goal_block(msg)
+                elif "Dropped goal block" in msg.content:
+                    self._process_drop_goal_block(msg)
         # Delete messages
         self.agent.received_messages = []
 
@@ -88,3 +126,15 @@ class MessageHandler:
             'Found goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
                 goal_block["shape"]) + ', "colour": "' +
             goal_block["colour"] + '"} at location ' + str(goal_block["location"]))
+
+    def send_pickup_goal_block(self, goal_block):
+        self._send(
+            'Picking up goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
+                goal_block["shape"]) + ', "colour": "' +
+            goal_block["colour"] + '"} at location ' + str(goal_block["location"]))
+
+    def send_drop_goal_block(self, goal_block, drop_off_location):
+        self._send(
+            'Dropped goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
+                goal_block["shape"]) + ', "colour": "' +
+            goal_block["colour"] + '"} at location ' + str(drop_off_location))
