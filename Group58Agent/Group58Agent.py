@@ -11,7 +11,7 @@ from Group58Agent.MessageHandler import MessageHandler
 from Group58Agent.PhaseHandler import PhaseHandler, Phase
 from Group58Agent.RoomChooser import RoomChooser
 from Group58Agent.RoomVisiter import RoomVisiter
-from Group58Agent.util import move_to, is_on_location
+from Group58Agent.util import move_to, is_on_location, path
 from bw4t.BW4TBrain import BW4TBrain
 
 
@@ -49,6 +49,8 @@ class Group58Agent(BW4TBrain):
         self._chosen_goal_block = None
         self._drop_off_n = None
         self.skip_room_search = False
+        self.skip_drop_off = False
+        self._path_length_drop_off = None
 
     def initialize(self):
         super().initialize()
@@ -135,6 +137,7 @@ class Group58Agent(BW4TBrain):
             # All rooms have been visited
             if room is None:
                 # TODO: what is next phase?
+                self.phase = Phase.CHOOSE_GOAL
                 return None, {}
 
             # Check if we are the closest agent (with phase CHOOSE_ROOM) to the room
@@ -170,7 +173,7 @@ class Group58Agent(BW4TBrain):
             self.phase = Phase.SEARCH_ROOM
             # Inform other agents that we are searching a room
             self.msg_handler.send_searching_room(self._chosen_room["room_name"])
-            # Are we going to skip during the room search
+            # Are we going to lazy skip during the room search
             self.skip_room_search = self.lazy_skip()
             # Open door
             return OpenDoorAction.__name__, {"object_id": self._chosen_room["obj_id"]}
@@ -224,12 +227,17 @@ class Group58Agent(BW4TBrain):
                     # Block is not there, find another goal
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}
+                # Are we going to lazy skip during the drop off
+                self.skip_drop_off = self.lazy_skip()
+                # Store path length to drop off location
+                self._path_length_drop_off = len(
+                    path(self.agent_id, self.state, self.location, self.drop_offs[self._drop_off_n]["location"]))
                 # Grab block
                 return GrabObject.__name__, {"object_id": obj_id}
             else:
                 return move_to(self, self._chosen_goal_block["location"])
 
-        # grab the goal block
+        # drop the goal block
         elif self.phase_handler.phase_is(Phase.DROP_GOAL):
             if is_on_location(self, self.drop_offs[self._drop_off_n]["location"]):
                 # Check if we are first drop off or previous drop off was delivered
@@ -238,7 +246,7 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                     # Mark drop off as delivered
                     self.drop_offs[self._drop_off_n]["delivered"] = True
-                    # Inform other agnets that we dropped the goal block
+                    # Inform other agents that we dropped the goal block
                     self.msg_handler.send_drop_goal_block(self._chosen_goal_block,
                                                           self.drop_offs[self._drop_off_n]["location"])
                     # Delete temp vaiables
@@ -248,4 +256,27 @@ class Group58Agent(BW4TBrain):
                 else:
                     return None, {}
             else:
-                return move_to(self, self.drop_offs[self._drop_off_n]["location"])
+                # We skip drop off if we are halfway through the path
+                if self.skip_drop_off and len(path(self.agent_id, self.state, self.location,
+                                                   self.drop_offs[self._drop_off_n][
+                                                       "location"])) / self._path_length_drop_off < 0.5:
+                    # Make sure that we are not on another drop off location
+                    for drop_off in self.drop_offs:
+                        if drop_off != self.drop_offs[self._drop_off_n] and is_on_location(self, drop_off["location"]):
+                            return move_to(self, self.drop_offs[self._drop_off_n]["location"])
+                    # Add dropped goal blocks to found goal blocks
+                    self._chosen_goal_block["location"] = self.location
+                    self.found_goal_blocks.append(self._chosen_goal_block)
+                    self.drop_offs[self._drop_off_n]["grabbed"] = False
+                    # Next phase is looking for another goal
+                    self.phase = Phase.CHOOSE_ROOM
+
+                    # Inform other agents that we dropped the goal block
+                    self.msg_handler.send_drop_goal_block(self._chosen_goal_block, self.location)
+
+                    # Delete temp vaiables
+                    self._chosen_goal_block = None
+                    self._drop_off_n = None
+                    return DropObject.__name__, {}
+                else:
+                    return move_to(self, self.drop_offs[self._drop_off_n]["location"])
