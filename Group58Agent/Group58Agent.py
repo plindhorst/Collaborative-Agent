@@ -17,6 +17,7 @@ from bw4t.BW4TBrain import BW4TBrain
 class Group58Agent(BW4TBrain):
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings)
+        self.settings = settings
         self.state = None
         self.state_tracker = None
         self.navigator = None
@@ -31,6 +32,7 @@ class Group58Agent(BW4TBrain):
         self.room_chooser = RoomChooser(self)
         self.room_visiter = RoomVisiter(self)
         self.goal_dropper = GoalDropper(self)
+        self.held_block_count = 0
 
         # We start by choosing a room
         self.phase = Phase.CHOOSE_ROOM
@@ -55,19 +57,34 @@ class Group58Agent(BW4TBrain):
         # Initialise goal block array
         i = 0
         for block in state.values():
-            if "class_inheritance" in block and "GhostBlock" in block["class_inheritance"]:
+            if (
+                "class_inheritance" in block
+                and "GhostBlock" in block["class_inheritance"]
+            ):
                 self.drop_offs.append(
-                    {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
-                     "size": block["visualization"]["size"], "location": block["location"], "delivered": False,
-                     "grabbed": False, "n": i})
+                    {
+                        "colour": block["visualization"]["colour"],
+                        "shape": block["visualization"]["shape"],
+                        "size": block["visualization"]["size"],
+                        "location": block["location"],
+                        "delivered": False,
+                        "grabbed": False,
+                        "n": i,
+                    }
+                )
                 i += 1
 
         # Initialise room array
         for room in state.values():
             if "class_inheritance" in room and "Door" in room["class_inheritance"]:
                 self.rooms.append(
-                    {"room_name": room["room_name"], "location": (room["location"][0], room["location"][1] + 1),
-                     "obj_id": room["obj_id"], "visited": False})
+                    {
+                        "room_name": room["room_name"],
+                        "location": (room["location"][0], room["location"][1] + 1),
+                        "obj_id": room["obj_id"],
+                        "visited": False,
+                    }
+                )
 
         # Initialise other_agents array
         for i, agent in enumerate(state["World"]["team_members"]):
@@ -75,13 +92,25 @@ class Group58Agent(BW4TBrain):
                 self.agent_idx = i
             else:
                 self.other_agents.append(
-                    {"agent_id": agent, "agent_idx": i, "location": (1, 1), "phase": "CHOOSE_ROOM"})
+                    {
+                        "agent_id": agent,
+                        "agent_idx": i,
+                        "location": (1, 1),
+                        "phase": "CHOOSE_ROOM",
+                    }
+                )
 
     # Returns a room from a room name
     def get_room(self, room_name):
         for room in self.rooms:
             if room["room_name"] == room_name:
                 return room
+
+    def mark_room_as_visited(self, room_name):
+        for i, room in enumerate(self.rooms):
+            if room["room_name"] == room_name:
+                self.rooms[i]["visited"] = True
+                break
 
     # return the next goal to be delivered
     # if all goals were delievered return None
@@ -101,7 +130,9 @@ class Group58Agent(BW4TBrain):
                 # The other agent is outside our range
                 other_agent["location"] = None
             else:
-                other_agent["location"] = self.state[other_agent["agent_id"]]["location"]
+                other_agent["location"] = self.state[other_agent["agent_id"]][
+                    "location"
+                ]
 
     # Choose action to perform
     def decide_on_bw4t_action(self, state):
@@ -117,6 +148,7 @@ class Group58Agent(BW4TBrain):
         if self.phase_handler.phase_is(Phase.CHOOSE_ROOM):
             # Get closest room and distance to it
             room, distance = self.room_chooser.choose_room(self.agent_id)
+            print(room)
 
             # All rooms have been visited
             if room is None:
@@ -132,8 +164,7 @@ class Group58Agent(BW4TBrain):
                 self._chosen_room = room
                 self.phase = Phase.GO_TO_ROOM
                 # Mark room as visited
-                room = self.get_room(self._chosen_room["room_name"])
-                room["visited"] = True
+                room = self.mark_room_as_visited(self._chosen_room["room_name"])
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
                 return move_to(self, self._chosen_room["location"])
@@ -200,32 +231,46 @@ class Group58Agent(BW4TBrain):
         elif self.phase_handler.phase_is(Phase.GRAB_GOAL):
             # TODO: check if the block was already grabbed
             if is_on_location(self, self._chosen_goal_block["location"]):
+                # If the agent is strong and holds less than 2 blocks
+                # search for another goal block next.
+                if self.settings["strong"] and self.held_block_count < 2:
+                    self.held_block_count += 1
+                    self.phase = Phase.CHOOSE_GOAL
                 self.phase = Phase.DROP_GOAL
-                obj_id = self.goal_dropper.get_block_obj_id(self._chosen_goal_block["location"])
+                obj_id = self.goal_dropper.get_block_obj_id(
+                    self._chosen_goal_block["location"]
+                )
                 if obj_id is None:
                     # Block is not there, find another goal
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}
+
                 # Grab block
                 return GrabObject.__name__, {"object_id": obj_id}
             else:
                 return move_to(self, self._chosen_goal_block["location"])
 
-        # grab the goal block
+        # drop the goal block
         elif self.phase_handler.phase_is(Phase.DROP_GOAL):
             if is_on_location(self, self.drop_offs[self._drop_off_n]["location"]):
                 # Check if we are first drop off or previous drop off was delivered
-                if self._drop_off_n == 0 or self.drop_offs[self._drop_off_n - 1]["delivered"]:
+                if (
+                    self._drop_off_n == 0
+                    or self.drop_offs[self._drop_off_n - 1]["delivered"]
+                ):
                     # Next phase is looking for another goal
                     self.phase = Phase.CHOOSE_GOAL
                     # Mark drop off as delivered
                     self.drop_offs[self._drop_off_n]["delivered"] = True
                     # Inform other agnets that we dropped the goal block
-                    self.msg_handler.send_drop_goal_block(self._chosen_goal_block,
-                                                          self.drop_offs[self._drop_off_n]["location"])
+                    self.msg_handler.send_drop_goal_block(
+                        self._chosen_goal_block,
+                        self.drop_offs[self._drop_off_n]["location"],
+                    )
                     # Delete temp vaiables
                     self._chosen_goal_block = None
                     self._drop_off_n = None
+                    self.held_block_count -= 1
                     return DropObject.__name__, {}
                 else:
                     return None, {}

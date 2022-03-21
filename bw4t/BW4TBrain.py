@@ -34,7 +34,7 @@ class BW4TBrain(BW4TAgentBrain, ABC):
         self.__settings.update(settings)
         super().__init__()
 
-    #@final
+    # @final
     def initialize(self):
         super().initialize()
 
@@ -43,7 +43,7 @@ class BW4TBrain(BW4TAgentBrain, ABC):
         act, params = self.decide_on_bw4t_action(state)
         params["grab_range"] = 1
         # TODO:Max objects should be changed for the strong agent
-        params["max_objects"] = 1
+        params["max_objects"] = 2
         params["action_duration"] = self.__settings["slowdown"]
         if self.__settings["grab_range"] > 1:
             raise ValueError(
