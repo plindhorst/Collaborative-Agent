@@ -15,6 +15,16 @@ if __name__ == "__main__":
             "botclass": Group58Agent,
             "settings": {"color": "#000000", "shape": 1, "strong": True},
         },
+        {
+            "name": "agent2",
+            "botclass": Group58Agent,
+            "settings": {"color": "#000000", "shape": 2, "strong": False},
+        },
+        # {
+        #     "name": "agent4",
+        #     "botclass": Group58Agent,
+        #     "settings": {"color": "#000000", "shape": 2, "strong": False},
+        # },
     ]
 
     print("Started world...")
