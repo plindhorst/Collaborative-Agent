@@ -1,3 +1,4 @@
+import random
 from typing import Dict
 
 from matrx.actions.door_actions import OpenDoorAction
@@ -36,10 +37,18 @@ class Group58Agent(BW4TBrain):
         # We start by choosing a room
         self.phase = Phase.CHOOSE_ROOM
 
+        self.probability = 0
+        # Set skip/lie probability for lazy and liar agents
+        if settings["liar"]:
+            self.probability = 0.8
+        elif settings["lazy"]:
+            self.probability = 0.5
+
         # Temporary variables to communicate between phases
         self._chosen_room = None
         self._chosen_goal_block = None
         self._drop_off_n = None
+        self.skip_room_search = False
 
     def initialize(self):
         super().initialize()
@@ -83,6 +92,10 @@ class Group58Agent(BW4TBrain):
         for room in self.rooms:
             if room["room_name"] == room_name:
                 return room
+
+    # Returns true with certain probability
+    def lazy_skip(self):
+        return self.settings["lazy"] and random.random() < self.probability
 
     # return the next goal to be delivered
     # if all goals were delievered return None
@@ -157,6 +170,8 @@ class Group58Agent(BW4TBrain):
             self.phase = Phase.SEARCH_ROOM
             # Inform other agents that we are searching a room
             self.msg_handler.send_searching_room(self._chosen_room["room_name"])
+            # Are we going to skip during the room search
+            self.skip_room_search = self.lazy_skip()
             # Open door
             return OpenDoorAction.__name__, {"object_id": self._chosen_room["obj_id"]}
 
