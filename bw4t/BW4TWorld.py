@@ -193,7 +193,7 @@ class BW4TWorld:
             else:
                 self._builder.add_agent(loc, brain,
                 team=team_name, name=agent['name'],
-                sense_capability=sense_capability, visualize_shape=agent["settings"]["shape"], visualize_colour=agent["settings"]["color"])
+                sense_capability=sense_capability, visualize_shape=agent["settings"]["shape"], visualize_colour=agent["settings"]["color"], visualize_opacity=0.6)
 
     def _addRooms(self):
         '''
