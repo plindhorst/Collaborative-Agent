@@ -13,12 +13,12 @@ if __name__ == "__main__":
         {
             "name": "agent1",
             "botclass": Group58Agent,
-            "settings": {"color": "#000000", "shape": 1, "strong": True},
+            "settings": {"color": "#000000", "shape": 1, "strong": False},
         },
         {
-            "name": "agent2",
+            "name": "Strong",
             "botclass": Group58Agent,
-            "settings": {"color": "#000000", "shape": 2, "strong": False},
+            "settings": {"color": "#0000FF", "shape": 2, "strong": True},
         },
         # {
         #     "name": "agent4",

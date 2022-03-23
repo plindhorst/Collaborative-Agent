@@ -225,7 +225,6 @@ class Group58Agent(BW4TBrain):
                 # Inform other agents that we are grabbing this goal block
                 self.msg_handler.send_pickup_goal_block(self._chosen_goal_block[-1])
                 self.picked_up_blocks += 1
-                print(self.picked_up_blocks)
                 return move_to(self, self._chosen_goal_block[-1]["location"])
 
         # grab the goal block
