@@ -41,10 +41,12 @@ class RoomVisiter:
             # Go over each block in the field of view
             for block in blocks:
                 block = {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
-                         "location": block["location"], "size": block["visualization"]["size"]}
+                        "location": block["location"], "size": block["visualization"]["size"]}
                 # Check if the block is a goal block
                 for drop_off in self.agent.drop_offs:
-                    if block["colour"] == drop_off["colour"] and block["shape"] == drop_off["shape"]:
+                    if (self.agent.settings["colourblind"] or block["colour"] == drop_off["colour"]) and block["shape"] == drop_off["shape"]:
+                        if self.agent.settings["colourblind"]:
+                            block["colour"] = "#000000"
                         if block not in self.found_goal_blocks:
                             self.found_goal_blocks.append(block)
                         break
