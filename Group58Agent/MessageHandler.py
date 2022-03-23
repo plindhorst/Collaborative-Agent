@@ -109,12 +109,12 @@ class MessageHandler:
                 drop_off["delivered"] = True
                 return
 
+        # If we are here then the dropped block is not delivered
         # Add dropped goal blocks to found goal blocks
         goal_block["location"] = drop_off_location
         self.agent.found_goal_blocks.append(goal_block)
         # Undo all undelivered grabbed drop offs since we do not know for which drop off the block was mis-dropped
         for drop_off in self.agent.drop_offs:
-            # TODO: might not work if another lazy dropped earlier
             if not drop_off["delivered"] and drop_off["grabbed"]:
                 drop_off["grabbed"] = False
 
