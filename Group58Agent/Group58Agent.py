@@ -176,6 +176,9 @@ class Group58Agent(BW4TBrain):
                 if self.skip_move_to_room and len(path(self.agent_id, self.state, self.location, self._chosen_room[
                     "location"])) / self._path_length_move_to_room < 0.5:
                     self.phase = Phase.CHOOSE_ROOM
+                    # Mark visited_by_me as False since we didnt fully visit the room
+                    self.get_room(self._chosen_room["room_name"])["visited_by_me"] = False
+                    # Delete temp variable
                     self._chosen_room = None
                     return None, {}
                 else:
