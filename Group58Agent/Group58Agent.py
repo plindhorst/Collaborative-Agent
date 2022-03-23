@@ -50,7 +50,9 @@ class Group58Agent(BW4TBrain):
         self._drop_off_n = None
         self.skip_room_search = False
         self.skip_drop_off = False
-        self._path_length_drop_off = None
+        self.skip_move_to_room = False
+        self._path_length_room = None
+        self._path_length_move_to_room = None
 
     def initialize(self):
         super().initialize()
@@ -155,18 +157,29 @@ class Group58Agent(BW4TBrain):
                 room["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
+                # Are we going to lazy skip during moving to room
+                self.skip_move_to_room = self.lazy_skip()
+                # Store path length to room
+                self._path_length_move_to_room = len(
+                    path(self.agent_id, self.state, self.location, self._chosen_room["location"]))
                 return move_to(self, self._chosen_room["location"])
 
         # Going to a room
         elif self.phase_handler.phase_is(Phase.GO_TO_ROOM):
-            # TODO: check if the room is not already visited
             if is_on_location(self, self._chosen_room["location"]):
                 self.phase = Phase.OPEN_DOOR
                 # Inform other agents that we are opening a door
                 self.msg_handler.send_opening_door(self._chosen_room["room_name"])
                 return None, {}
             else:
-                return move_to(self, self._chosen_room["location"])
+                # We skip moving to the room if we are halfway through the path
+                if self.skip_move_to_room and len(path(self.agent_id, self.state, self.location, self._chosen_room[
+                    "location"])) / self._path_length_move_to_room < 0.5:
+                    self.phase = Phase.CHOOSE_ROOM
+                    self._chosen_room = None
+                    return None, {}
+                else:
+                    return move_to(self, self._chosen_room["location"])
 
         # Opening a room door
         elif self.phase_handler.phase_is(Phase.OPEN_DOOR):
