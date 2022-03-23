@@ -173,7 +173,6 @@ class Group58Agent(BW4TBrain):
 
             # All rooms have been visited
             if room is None:
-                # TODO: what is next phase?
                 self.phase = Phase.CHOOSE_GOAL
                 return None, {}
 
@@ -192,8 +191,9 @@ class Group58Agent(BW4TBrain):
                 room["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
-                # Are we going to lazy skip during moving to room
-                self.skip_move_to_room = self.lazy_skip()
+                # Are we going to lazy/lie skip during moving to room
+                self.skip_move_to_room = self.lazy_skip() or self.lie()
+
                 # Store path length to room
                 self._path_length_move_to_room = len(
                     path(self.agent_id, self.state, self.location, self._chosen_room["location"]))
@@ -224,8 +224,8 @@ class Group58Agent(BW4TBrain):
             self.phase = Phase.SEARCH_ROOM
             # Inform other agents that we are searching a room
             self.msg_handler.send_searching_room(self._chosen_room["room_name"])
-            # Are we going to lazy skip during the room search
-            self.skip_room_search = self.lazy_skip()
+            # Are we going to lazy/lie skip during the room search
+            self.skip_room_search = self.lazy_skip() or self.lie()
             # Are we going to lie that we found a goal block
             if self.lie():
                 # Send current goal block to all other agents at start position
@@ -286,8 +286,7 @@ class Group58Agent(BW4TBrain):
                 # Check if block is here and that it matches
                 if block is None or self.drop_offs[self._drop_off_n[0]]["colour"] != block["colour"] or \
                         self.drop_offs[self._drop_off_n[0]]["shape"] != block["shape"]:
-                    print("block does not match")
-                    # TODO: Trust-- here, remember who send block found
+                    # TODO: Decrease Trust here, remember who send block found
                     # Infrom the other agents that grabbing was unsuccessful by dropping a wrong block
                     self.msg_handler.send_drop_goal_block(
                         {"colour": "#000000", "shape": -1,
@@ -346,7 +345,7 @@ class Group58Agent(BW4TBrain):
                         self.drop_offs[self._drop_off_n[0]]["location"],
                     )
 
-                    # Delete temp vaiables
+                    # Delete temp variables
                     if self.settings["strong"] and len(self.held_block_ids) > 1:
                         # If the agent is the strong one remove
                         # the head of the goal block list, drop_off_nth
@@ -364,7 +363,6 @@ class Group58Agent(BW4TBrain):
             else:
 
                 # We skip drop off if we are halfway through the path
-                # TODO: fix here
                 if self.skip_drop_off and len(path(self.agent_id, self.state, self.location,
                                                    self.drop_offs[self._drop_off_n[0]][
                                                        "location"])) / self._path_length_drop_off < 0.5:
