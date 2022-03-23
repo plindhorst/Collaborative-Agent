@@ -46,13 +46,20 @@ class Group58Agent(BW4TBrain):
 
         # Temporary variables to communicate between phases
         self._chosen_room = None
-        self._chosen_goal_block = None
-        self._drop_off_n = None
+
+
         self.skip_room_search = False
         self.skip_drop_off = False
         self.skip_move_to_room = False
         self._path_length_room = None
         self._path_length_move_to_room = None
+        self._path_length_drop_off = None
+
+        self._chosen_goal_block = []
+        self._drop_off_n = []
+        self.held_block_ids = []
+        self.picked_up_blocks = 0
+
 
     def initialize(self):
         super().initialize()
@@ -69,19 +76,36 @@ class Group58Agent(BW4TBrain):
         # Initialise goal block array
         i = 0
         for block in state.values():
-            if "class_inheritance" in block and "GhostBlock" in block["class_inheritance"]:
+            if (
+                "class_inheritance" in block
+                and "GhostBlock" in block["class_inheritance"]
+            ):
                 self.drop_offs.append(
-                    {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
-                     "size": block["visualization"]["size"], "location": block["location"], "delivered": False,
-                     "grabbed": False, "n": i})
+                    {
+                        "colour": block["visualization"]["colour"],
+                        "shape": block["visualization"]["shape"],
+                        "size": block["visualization"]["size"],
+                        "location": block["location"],
+                        "delivered": False,
+                        "grabbed": False,
+                        "n": i,
+                    }
+                )
                 i += 1
 
         # Initialise room array
         for room in state.values():
             if "class_inheritance" in room and "Door" in room["class_inheritance"]:
                 self.rooms.append(
-                    {"room_name": room["room_name"], "location": (room["location"][0], room["location"][1] + 1),
-                     "obj_id": room["obj_id"], "visited": False, "last_agent_id": None, "visited_by_me": False})
+                    {
+                        "room_name": room["room_name"],
+                        "location": (room["location"][0], room["location"][1] + 1),
+                        "obj_id": room["obj_id"],
+                        "visited": False,
+                        "last_agent_id": None,
+                        "visited_by_me": False,
+                    }
+                )
 
         # Initialise other_agents array
         for i, agent in enumerate(state["World"]["team_members"]):
@@ -89,7 +113,13 @@ class Group58Agent(BW4TBrain):
                 self.agent_idx = i
             else:
                 self.other_agents.append(
-                    {"agent_id": agent, "agent_idx": i, "location": (1, 1), "phase": "CHOOSE_ROOM"})
+                    {
+                        "agent_id": agent,
+                        "agent_idx": i,
+                        "location": (1, 1),
+                        "phase": "CHOOSE_ROOM",
+                    }
+                )
 
     # Returns a room from a room name
     def get_room(self, room_name):
@@ -119,7 +149,9 @@ class Group58Agent(BW4TBrain):
                 # The other agent is outside our range
                 other_agent["location"] = None
             else:
-                other_agent["location"] = self.state[other_agent["agent_id"]]["location"]
+                other_agent["location"] = self.state[other_agent["agent_id"]][
+                    "location"
+                ]
 
     # Choose action to perform
     def decide_on_bw4t_action(self, state):
@@ -205,7 +237,7 @@ class Group58Agent(BW4TBrain):
             goal_block, distance = self.goal_dropper.find_goal_block(self.agent_id)
 
             # No goal block found
-            if goal_block is None:
+            if self.settings["colourblind"] or goal_block is None:
                 self.phase = Phase.CHOOSE_ROOM
                 return None, {}
 
@@ -215,84 +247,120 @@ class Group58Agent(BW4TBrain):
                 return None, {}
             else:
                 # Next phase is going to the block
-                self._chosen_goal_block = goal_block
+                self._chosen_goal_block.append(goal_block)
                 self.phase = Phase.GRAB_GOAL
                 # Mark drop goal as grabbed
                 drop_off = self.get_next_drop_off()
                 drop_off["grabbed"] = True
-                self._drop_off_n = drop_off["n"]
+                self._drop_off_n.append(drop_off["n"])
                 # Delete temp variable
                 self._chosen_room = None
                 # Remove grabbed block from found goal blocks
                 found_goal_blocks = []
                 for old_block in self.found_goal_blocks:
-                    if old_block["location"] != self._chosen_goal_block["location"]:
+                    if old_block["location"] != goal_block["location"]:
                         found_goal_blocks.append(old_block)
                 self.found_goal_blocks = found_goal_blocks
                 # Inform other agents that we are grabbing this goal block
-                self.msg_handler.send_pickup_goal_block(self._chosen_goal_block)
-                return move_to(self, self._chosen_goal_block["location"])
+                self.msg_handler.send_pickup_goal_block(goal_block)
+                self.picked_up_blocks += 1
+                return move_to(self, goal_block["location"])
 
         # grab the goal block
         elif self.phase_handler.phase_is(Phase.GRAB_GOAL):
             # TODO: check if the block was already grabbed
-            if is_on_location(self, self._chosen_goal_block["location"]):
-                self.phase = Phase.DROP_GOAL
-                obj_id = self.goal_dropper.get_block_obj_id(self._chosen_goal_block["location"])
+            if is_on_location(self, self._chosen_goal_block[-1]["location"]):
+                # If the agent is strong and holds less than 2 blocks
+                # and there are were less than 2 pick ups already
+                # search for another goal block next.
+                if (
+                    self.settings["strong"]
+                    and len(self.held_block_ids) < 1
+                    and self.picked_up_blocks < 2
+                ):
+                    self.phase = Phase.CHOOSE_GOAL
+                else:
+                    self.phase = Phase.DROP_GOAL
+                obj_id = self.goal_dropper.get_block_obj_id(
+                    self._chosen_goal_block[-1]["location"]
+                )
                 if obj_id is None:
                     # Block is not there, find another goal
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}
-                # Are we going to lazy skip during the drop off
-                self.skip_drop_off = self.lazy_skip()
-                # Store path length to drop off location
-                self._path_length_drop_off = len(
-                    path(self.agent_id, self.state, self.location, self.drop_offs[self._drop_off_n]["location"]))
+                else:
+                    # Save the ID to later know what to drop
+                    self.held_block_ids.append(obj_id)
+
+                    # Are we going to lazy skip during the drop off
+                    self.skip_drop_off = self.lazy_skip()
+                    # Store path length to drop off location
+                    self._path_length_drop_off = len(
+                        path(self.agent_id, self.state, self.location, self.drop_offs[self._drop_off_n[0]]["location"]))
                 # Grab block
                 return GrabObject.__name__, {"object_id": obj_id}
             else:
-                return move_to(self, self._chosen_goal_block["location"])
+                return move_to(self, self._chosen_goal_block[-1]["location"])
 
         # drop the goal block
         elif self.phase_handler.phase_is(Phase.DROP_GOAL):
-            if is_on_location(self, self.drop_offs[self._drop_off_n]["location"]):
+            if is_on_location(self, self.drop_offs[self._drop_off_n[0]]["location"]):
                 # Check if we are first drop off or previous drop off was delivered
-                if self._drop_off_n == 0 or self.drop_offs[self._drop_off_n - 1]["delivered"]:
+                if (
+                    self._drop_off_n[0] == 0
+                    or self.drop_offs[self._drop_off_n[0] - 1]["delivered"]
+                ):
                     # Next phase is looking for another goal
                     self.phase = Phase.CHOOSE_GOAL
                     # Mark drop off as delivered
-                    self.drop_offs[self._drop_off_n]["delivered"] = True
+
+                    self.drop_offs[self._drop_off_n[0]]["delivered"] = True
                     # Inform other agents that we dropped the goal block
-                    self.msg_handler.send_drop_goal_block(self._chosen_goal_block,
-                                                          self.drop_offs[self._drop_off_n]["location"])
+                    self.msg_handler.send_drop_goal_block(
+                        self._chosen_goal_block[0],
+                        self.drop_offs[self._drop_off_n[0]]["location"],
+                    )
+
                     # Delete temp vaiables
-                    self._chosen_goal_block = None
-                    self._drop_off_n = None
-                    return DropObject.__name__, {}
+                    if self.settings["strong"] and len(self.held_block_ids) > 1:
+                        # If the agnet is the strong one remove
+                        # the head of the goal block list, drop_off_nth
+                        self._chosen_goal_block.pop(0)
+                        self._drop_off_n.pop(0)
+                        self.phase = Phase.DROP_GOAL
+                    else:
+                        self._chosen_goal_block = []
+                        self._drop_off_n = []
+                    # pop the ID
+                    obj_id = self.held_block_ids.pop(0)
+                    return DropObject.__name__, {"object_id": obj_id}
                 else:
                     return None, {}
             else:
+
                 # We skip drop off if we are halfway through the path
+                # TODO: fix here
                 if self.skip_drop_off and len(path(self.agent_id, self.state, self.location,
-                                                   self.drop_offs[self._drop_off_n][
+                                                   self.drop_offs[self._drop_off_n[0]][
                                                        "location"])) / self._path_length_drop_off < 0.5:
                     # Make sure that we are not on another drop off location
                     for drop_off in self.drop_offs:
-                        if drop_off != self.drop_offs[self._drop_off_n] and is_on_location(self, drop_off["location"]):
-                            return move_to(self, self.drop_offs[self._drop_off_n]["location"])
+                        if drop_off != self.drop_offs[self._drop_off_n[0]] and is_on_location(self, drop_off["location"]):
+                            return move_to(self, self.drop_offs[self._drop_off_n[0]]["location"])
                     # Add dropped goal blocks to found goal blocks
-                    self._chosen_goal_block["location"] = self.location
-                    self.found_goal_blocks.append(self._chosen_goal_block)
-                    self.drop_offs[self._drop_off_n]["grabbed"] = False
+                    self._chosen_goal_block[0]["location"] = self.location
+                    self.found_goal_blocks.append(self._chosen_goal_block[0])
+                    self.drop_offs[self._drop_off_n[0]]["grabbed"] = False
                     # Next phase is looking for another goal
                     self.phase = Phase.CHOOSE_ROOM
 
                     # Inform other agents that we dropped the goal block
-                    self.msg_handler.send_drop_goal_block(self._chosen_goal_block, self.location)
+                    self.msg_handler.send_drop_goal_block(self._chosen_goal_block[0], self.location)
 
                     # Delete temp vaiables
-                    self._chosen_goal_block = None
-                    self._drop_off_n = None
+                    self._chosen_goal_block = []
+                    self._drop_off_n = []
                     return DropObject.__name__, {}
                 else:
-                    return move_to(self, self.drop_offs[self._drop_off_n]["location"])
+                    return move_to(self, self.drop_offs[self._drop_off_n[0]]["location"])
+
