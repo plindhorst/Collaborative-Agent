@@ -12,13 +12,19 @@ class RoomChooser:
         unvisited = self._get_unvisited_rooms()
 
         if len(unvisited) == 0:
-            return None, None
+            # Look inside rooms not visited by us
+            unvisited = self._get_unvisited_by_me()
+            if len(unvisited) == 0:
+                # All rooms were visited by us
+                return None, None
         # order rooms by distance
         distances = []
         for room in unvisited:
             start_location = self.agent.state[agent_id]["location"]
             target_location = room["location"]
-            distances.append(len(path(agent_id, self.agent.state, start_location, target_location)))
+            distances.append(
+                len(path(agent_id, self.agent.state, start_location, target_location))
+            )
         idx = np.argsort(distances)
         return np.array(unvisited)[idx][0], np.array(distances)[idx][0]
 
@@ -27,7 +33,10 @@ class RoomChooser:
         # Go over all other agents, if we chose the same room take the one closest to it.
         # In case of draw choose smallest agent_idx
         for other_agent in self.agent.other_agents:
-            if other_agent["phase"] == "CHOOSE_ROOM" and other_agent["location"] is not None:
+            if (
+                other_agent["phase"] == "CHOOSE_ROOM"
+                and other_agent["location"] is not None
+            ):
                 other_room, other_distance = self.choose_room(other_agent["agent_id"])
                 if room["room_name"] == other_room["room_name"]:
                     if distance == other_distance:
@@ -45,5 +54,13 @@ class RoomChooser:
         unvisited = []
         for room in self.agent.rooms:
             if not room["visited"]:
+                unvisited.append(room)
+        return unvisited
+
+    # Returns all rooms that have not been visited by us
+    def _get_unvisited_by_me(self):
+        unvisited = []
+        for room in self.agent.rooms:
+            if not room["visited_by_me"]:
                 unvisited.append(room)
         return unvisited
