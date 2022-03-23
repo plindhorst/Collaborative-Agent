@@ -6,6 +6,7 @@ class RoomVisiter:
     def __init__(self, agent):
         self.agent = agent
         self.found_goal_blocks = []
+        self._skipped = False
 
     def visit_room(self, room):
 
@@ -19,8 +20,13 @@ class RoomVisiter:
         for i, location in enumerate(locations):
             if is_on_location(self.agent, location):
                 self._update_room()
-                if i < len(locations) - 1:
-                    return move_to(self.agent, locations[i + 1])
+                if not self._skipped and i < len(locations) - 1:
+                    # After entering the room check if lazy can skip room
+                    if i == 2 and self.agent.skip_room_search:
+                        self._skipped = True
+                        return move_to(self.agent, locations[0])
+                    else:
+                        return move_to(self.agent, locations[i + 1])
                 else:
                     # We completed the room search
                     self.agent.phase = Phase.CHOOSE_GOAL
@@ -31,7 +37,9 @@ class RoomVisiter:
                             self.agent.found_goal_blocks.append(goal_block)
                         self.agent.msg_handler.send_found_goal_block(goal_block)
 
+                    # Reset temp variables
                     self.found_goal_blocks = []
+                    self._skipped = False
                     return move_to(self.agent, locations[0])
 
     # Update the goal blocks seen in agent range

@@ -82,9 +82,13 @@ class MessageHandler:
                 found_goal_blocks.append(old_block)
         self.agent.found_goal_blocks = found_goal_blocks
         # Update drop off as grabbed
-        self.agent.get_next_drop_off()["grabbed"] = True
+
+        next_drop_off = self.agent.get_next_drop_off()
+        if next_drop_off is not None:
+            next_drop_off["grabbed"] = True
         # Update picked up block count
         self.agent.picked_up_blocks += 1
+
 
     # What to update when receiving a pickup block message
     def _process_drop_goal_block(self, msg):
@@ -105,8 +109,14 @@ class MessageHandler:
                 drop_off["delivered"] = True
                 return
 
-        # TODO: what happens when the block was not delivered on a drop off? -> lazy agent drops outside
-        print("Goal block " + goal_block + " was dropped outside of drop off")
+        # Add dropped goal blocks to found goal blocks
+        goal_block["location"] = drop_off_location
+        self.agent.found_goal_blocks.append(goal_block)
+        # Undo all undelivered grabbed drop offs since we do not know for which drop off the block was mis-dropped
+        for drop_off in self.agent.drop_offs:
+            # TODO: might not work if another lazy dropped earlier
+            if not drop_off["delivered"] and drop_off["grabbed"]:
+                drop_off["grabbed"] = False
 
     # Go over received messages and perform updates
     def read_messages(self):
