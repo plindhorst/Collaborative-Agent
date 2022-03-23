@@ -10,11 +10,21 @@ press the start button in god mode to start the session.
 
 if __name__ == "__main__":
     agents = [
-        {"name": "agent1", "botclass": Group58Agent, "settings": {"color": "#0000FF", "shape": 1, "colourblind": True}},
-        {"name": "agent2", "botclass": Group58Agent, "settings": {"color": "#000000", "shape": 2, "colourblind": False}},
-        #{"name": "agent3", "botclass": Group58Agent, "settings": {"color": "#000000", "shape": 0}},
-        #{"name": "agent4", "botclass": Group58Agent, "settings": {"color": "#FF0000", "shape": 2}},
-
+        {
+            "name": "agent1",
+            "botclass": Group58Agent,
+            "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": False},
+        },
+        {
+            "name": "Strong",
+            "botclass": Group58Agent,
+            "settings": {"color": "#0000FF", "shape": 2, "strong": True, "colourblind": False},
+        },
+        {
+            "name": "ColourBlind",
+            "botclass": Group58Agent,
+            "settings": {"color": "#0000FF", "shape": 0, "strong": False, "colourblind": True},
+        },
     ]
 
     print("Started world...")

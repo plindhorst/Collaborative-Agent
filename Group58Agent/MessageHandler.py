@@ -49,8 +49,12 @@ class MessageHandler:
         self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
 
         # Parse message content
-        goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
-        location = json.loads("[" + msg.content[msg.content.index("(") + 1:msg.content.index(")")] + "]")
+        goal_block = json.loads(
+            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+        )
+        location = json.loads(
+            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+        )
         goal_block["location"] = (location[0], location[1])
 
         # Add goal block to our agent's goal blocks
@@ -63,8 +67,12 @@ class MessageHandler:
         self._update_other_agent_phase(msg.from_id, Phase.GRAB_GOAL)
 
         # Parse message content
-        goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
-        location = json.loads("[" + msg.content[msg.content.index("(") + 1:msg.content.index(")")] + "]")
+        goal_block = json.loads(
+            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+        )
+        location = json.loads(
+            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+        )
         goal_block["location"] = (location[0], location[1])
 
         # Remove grabbed block from found goal blocks
@@ -75,6 +83,8 @@ class MessageHandler:
         self.agent.found_goal_blocks = found_goal_blocks
         # Update drop off as grabbed
         self.agent.get_next_drop_off()["grabbed"] = True
+        # Update picked up block count
+        self.agent.picked_up_blocks += 1
 
     # What to update when receiving a pickup block message
     def _process_drop_goal_block(self, msg):
@@ -82,8 +92,12 @@ class MessageHandler:
         self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
 
         # Parse message content
-        goal_block = json.loads(msg.content[msg.content.index("{"):msg.content.index("}") + 1])
-        location = json.loads("[" + msg.content[msg.content.index("(") + 1:msg.content.index(")")] + "]")
+        goal_block = json.loads(
+            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+        )
+        location = json.loads(
+            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+        )
         drop_off_location = (location[0], location[1])
 
         for drop_off in self.agent.drop_offs:
@@ -124,18 +138,36 @@ class MessageHandler:
 
     def send_found_goal_block(self, goal_block):
         self._send(
-            'Found goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
-                goal_block["shape"]) + ', "colour": "' +
-            goal_block["colour"] + '"} at location ' + str(goal_block["location"]))
+            'Found goal block {"size": '
+            + str(goal_block["size"])
+            + ', "shape": '
+            + str(goal_block["shape"])
+            + ', "colour": "'
+            + goal_block["colour"]
+            + '"} at location '
+            + str(goal_block["location"])
+        )
 
     def send_pickup_goal_block(self, goal_block):
         self._send(
-            'Picking up goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
-                goal_block["shape"]) + ', "colour": "' +
-            goal_block["colour"] + '"} at location ' + str(goal_block["location"]))
+            'Picking up goal block {"size": '
+            + str(goal_block["size"])
+            + ', "shape": '
+            + str(goal_block["shape"])
+            + ', "colour": "'
+            + goal_block["colour"]
+            + '"} at location '
+            + str(goal_block["location"])
+        )
 
     def send_drop_goal_block(self, goal_block, drop_off_location):
         self._send(
-            'Dropped goal block {"size": ' + str(goal_block["size"]) + ', "shape": ' + str(
-                goal_block["shape"]) + ', "colour": "' +
-            goal_block["colour"] + '"} at location ' + str(drop_off_location))
+            'Dropped goal block {"size": '
+            + str(goal_block["size"])
+            + ', "shape": '
+            + str(goal_block["shape"])
+            + ', "colour": "'
+            + goal_block["colour"]
+            + '"} at location '
+            + str(drop_off_location)
+        )
