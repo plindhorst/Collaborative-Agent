@@ -162,9 +162,9 @@ class Group58Agent(BW4TBrain):
             # we initialise our room map and goal array
             self._initialize_state(state)
 
-        self.state = state
         self._update_agent_locations()
         self.msg_handler.read_messages()
+        self.state = state
 
         # Choosing a room
         if self.phase_handler.phase_is(Phase.CHOOSE_ROOM):
