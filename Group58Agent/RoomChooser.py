@@ -64,3 +64,11 @@ class RoomChooser:
             if not room["visited_by_me"]:
                 unvisited.append(room)
         return unvisited
+
+    # Returns True if all rooms have been visited
+    def all_rooms_visited(self):
+        visited_n = 0
+        for room in self.agent.rooms:
+            if room["visited"]:
+                visited_n += 1
+        return visited_n == len(self.agent.rooms)
