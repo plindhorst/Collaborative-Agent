@@ -18,8 +18,8 @@ class GoalDropper:
         current_goal_blocks_found = []
         for found_goal_block in self.agent.found_goal_blocks:
             if (
-                found_goal_block["colour"] == current_drop_off["colour"]
-                and found_goal_block["shape"] == current_drop_off["shape"]
+                    found_goal_block["colour"] == current_drop_off["colour"]
+                    and found_goal_block["shape"] == current_drop_off["shape"]
             ):
                 start_location = self.agent.state[agent_id]["location"]
                 target_location = found_goal_block["location"]
@@ -48,8 +48,8 @@ class GoalDropper:
         # In case of draw choose smallest agent_idx
         for other_agent in self.agent.other_agents:
             if (
-                other_agent["phase"] == "CHOOSE_GOAL"
-                and other_agent["location"] is not None
+                    other_agent["phase"] == "CHOOSE_GOAL"
+                    and other_agent["location"] is not None
             ):
                 other_goal_block, other_distance = self.find_goal_block(
                     other_agent["agent_id"]
@@ -65,12 +65,15 @@ class GoalDropper:
                             return True
         return False
 
-    # Returns the obj id of a block at a certain location
-    def get_block_obj_id(self, location):
+    # Returns the block at a certain location
+    def get_block_info(self, location):
         blocks = self.agent.state.get_with_property({"is_collectable": True})
         if blocks is not None:
             # Go over each block in the field of view
             for block in blocks:
                 if location == block["location"]:
-                    return block["obj_id"]
+                    block = {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
+                             "location": block["location"], "size": block["visualization"]["size"],
+                             "obj_id": block["obj_id"]}
+                    return block
         return None

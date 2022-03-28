@@ -47,19 +47,19 @@ class Group58Agent(BW4TBrain):
         # Temporary variables to communicate between phases
         self._chosen_room = None
 
-
+        # Temp variables for lazy/liar
         self.skip_room_search = False
         self.skip_drop_off = False
         self.skip_move_to_room = False
         self._path_length_room = None
         self._path_length_move_to_room = None
         self._path_length_drop_off = None
+        self.lied_goal_n = 0
 
         self._chosen_goal_block = []
         self._drop_off_n = []
         self.held_block_ids = []
         self.picked_up_blocks = 0
-
 
     def initialize(self):
         super().initialize()
@@ -77,8 +77,8 @@ class Group58Agent(BW4TBrain):
         i = 0
         for block in state.values():
             if (
-                "class_inheritance" in block
-                and "GhostBlock" in block["class_inheritance"]
+                    "class_inheritance" in block
+                    and "GhostBlock" in block["class_inheritance"]
             ):
                 self.drop_offs.append(
                     {
@@ -131,6 +131,10 @@ class Group58Agent(BW4TBrain):
     def lazy_skip(self):
         return self.settings["lazy"] and random.random() < self.probability
 
+    # Returns true with certain probability
+    def lie(self):
+        return self.settings["liar"] and random.random() < self.probability
+
     # return the next goal to be delivered
     # if all goals were delievered return None
     def get_next_drop_off(self):
@@ -159,9 +163,9 @@ class Group58Agent(BW4TBrain):
             # we initialise our room map and goal array
             self._initialize_state(state)
 
-        self.state = state
         self._update_agent_locations()
         self.msg_handler.read_messages()
+        self.state = state
 
         # Choosing a room
         if self.phase_handler.phase_is(Phase.CHOOSE_ROOM):
@@ -170,7 +174,6 @@ class Group58Agent(BW4TBrain):
 
             # All rooms have been visited
             if room is None:
-                # TODO: what is next phase?
                 self.phase = Phase.CHOOSE_GOAL
                 return None, {}
 
@@ -189,8 +192,10 @@ class Group58Agent(BW4TBrain):
                 room["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
-                # Are we going to lazy skip during moving to room
-                self.skip_move_to_room = self.lazy_skip()
+                # Are we going to lazy/lie skip during moving to room
+                self.skip_move_to_room = (self.lazy_skip() or self.lie()) and not \
+                    self.room_chooser.all_rooms_visited()
+
                 # Store path length to room
                 self._path_length_move_to_room = len(
                     path(self.agent_id, self.state, self.location, self._chosen_room["location"]))
@@ -212,6 +217,7 @@ class Group58Agent(BW4TBrain):
                     self.get_room(self._chosen_room["room_name"])["visited_by_me"] = False
                     # Delete temp variable
                     self._chosen_room = None
+                    self.skip_move_to_room = False
                     return None, {}
                 else:
                     return move_to(self, self._chosen_room["location"])
@@ -221,9 +227,29 @@ class Group58Agent(BW4TBrain):
             self.phase = Phase.SEARCH_ROOM
             # Inform other agents that we are searching a room
             self.msg_handler.send_searching_room(self._chosen_room["room_name"])
-            # Are we going to lazy skip during the room search
-            self.skip_room_search = self.lazy_skip()
-            # Open door
+            # Are we going to lazy/lie skip during the room search
+            self.skip_room_search = (self.lazy_skip() or self.lie()) and not \
+                self.room_chooser.all_rooms_visited()
+            if self.skip_room_search:
+                # Mark visited_by_me as False since we didnt fully visit the room
+                self.get_room(self._chosen_room["room_name"])["visited_by_me"] = False
+            # Are we going to lie that we found a goal block
+            if self.lie():
+                lie = True
+                # Check if no other goal block is on (1, 1)
+                for found_block in self.found_goal_blocks:
+                    if found_block["location"] == (1, 1):
+                        lie = False
+                        break
+                if lie and self.lied_goal_n < len(self.drop_offs):
+                    # Send current goal block to all other agents at start position
+                    self.msg_handler.send_found_goal_block(
+                        {"colour": self.drop_offs[self.lied_goal_n]["colour"],
+                         "shape": self.drop_offs[self.lied_goal_n]["shape"],
+                         "location": (1, 1),
+                         "size": self.drop_offs[self.lied_goal_n]["size"]})
+                    self.lied_goal_n += 1
+                # Open door
             return OpenDoorAction.__name__, {"object_id": self._chosen_room["obj_id"]}
 
         # Searching goal blocks in a room
@@ -235,6 +261,9 @@ class Group58Agent(BW4TBrain):
         elif self.phase_handler.phase_is(Phase.CHOOSE_GOAL):
             # Get closest goal
             goal_block, distance = self.goal_dropper.find_goal_block(self.agent_id)
+
+            # Reset temp variable
+            self.skip_room_search = False
 
             # No goal block found
             if self.settings["colourblind"] or goal_block is None:
@@ -268,37 +297,51 @@ class Group58Agent(BW4TBrain):
 
         # grab the goal block
         elif self.phase_handler.phase_is(Phase.GRAB_GOAL):
-            # TODO: check if the block was already grabbed
             if is_on_location(self, self._chosen_goal_block[-1]["location"]):
+
+                block = self.goal_dropper.get_block_info(
+                    self._chosen_goal_block[-1]["location"]
+                )
+                # Check if block is here and that it matches
+                if block is None or self.drop_offs[self._drop_off_n[0]]["colour"] != block["colour"] or \
+                        self.drop_offs[self._drop_off_n[0]]["shape"] != block["shape"]:
+                    # TODO: Decrease Trust here, remember who send block found
+                    # Infrom the other agents that grabbing was unsuccessful by dropping a wrong block
+                    self.msg_handler.send_drop_goal_block(
+                        {"colour": "#000000", "shape": -1,
+                         "location": self.location, "size": 0.5},
+                        self.location,
+                    )
+                    # Block is not there, find another goal
+                    self.phase = Phase.CHOOSE_GOAL
+                    # Reset grabbed and delete temp variables
+                    self.drop_offs[self._drop_off_n[0]]["grabbed"] = False
+                    self._chosen_goal_block.pop(0)
+                    self._drop_off_n.pop(0)
+                    return None, {}
+
                 # If the agent is strong and holds less than 2 blocks
                 # and there are were less than 2 pick ups already
                 # search for another goal block next.
                 if (
-                    self.settings["strong"]
-                    and len(self.held_block_ids) < 1
-                    and self.picked_up_blocks < 2
+                        self.settings["strong"]
+                        and len(self.held_block_ids) < 1
+                        and self.picked_up_blocks < 2
                 ):
                     self.phase = Phase.CHOOSE_GOAL
                 else:
                     self.phase = Phase.DROP_GOAL
-                obj_id = self.goal_dropper.get_block_obj_id(
-                    self._chosen_goal_block[-1]["location"]
-                )
-                if obj_id is None:
-                    # Block is not there, find another goal
-                    self.phase = Phase.CHOOSE_GOAL
-                    return None, {}
-                else:
-                    # Save the ID to later know what to drop
-                    self.held_block_ids.append(obj_id)
 
-                    # Are we going to lazy skip during the drop off
-                    self.skip_drop_off = self.lazy_skip()
-                    # Store path length to drop off location
-                    self._path_length_drop_off = len(
-                        path(self.agent_id, self.state, self.location, self.drop_offs[self._drop_off_n[0]]["location"]))
+                # Save the ID to later know what to drop
+                self.held_block_ids.append(block["obj_id"])
+
+                # Are we going to lazy/lie skip during the drop off
+                self.skip_drop_off = self.lazy_skip() or self.lie()
+                # Store path length to drop off location
+                self._path_length_drop_off = len(
+                    path(self.agent_id, self.state, self.location, self.drop_offs[self._drop_off_n[0]]["location"]))
                 # Grab block
-                return GrabObject.__name__, {"object_id": obj_id}
+                return GrabObject.__name__, {"object_id": block["obj_id"]}
             else:
                 return move_to(self, self._chosen_goal_block[-1]["location"])
 
@@ -307,8 +350,8 @@ class Group58Agent(BW4TBrain):
             if is_on_location(self, self.drop_offs[self._drop_off_n[0]]["location"]):
                 # Check if we are first drop off or previous drop off was delivered
                 if (
-                    self._drop_off_n[0] == 0
-                    or self.drop_offs[self._drop_off_n[0] - 1]["delivered"]
+                        self._drop_off_n[0] == 0
+                        or self.drop_offs[self._drop_off_n[0] - 1]["delivered"]
                 ):
                     # Next phase is looking for another goal
                     self.phase = Phase.CHOOSE_GOAL
@@ -321,9 +364,9 @@ class Group58Agent(BW4TBrain):
                         self.drop_offs[self._drop_off_n[0]]["location"],
                     )
 
-                    # Delete temp vaiables
+                    # Delete temp variables
                     if self.settings["strong"] and len(self.held_block_ids) > 1:
-                        # If the agnet is the strong one remove
+                        # If the agent is the strong one remove
                         # the head of the goal block list, drop_off_nth
                         self._chosen_goal_block.pop(0)
                         self._drop_off_n.pop(0)
@@ -339,13 +382,13 @@ class Group58Agent(BW4TBrain):
             else:
 
                 # We skip drop off if we are halfway through the path
-                # TODO: fix here
                 if self.skip_drop_off and len(path(self.agent_id, self.state, self.location,
                                                    self.drop_offs[self._drop_off_n[0]][
                                                        "location"])) / self._path_length_drop_off < 0.5:
                     # Make sure that we are not on another drop off location
                     for drop_off in self.drop_offs:
-                        if drop_off != self.drop_offs[self._drop_off_n[0]] and is_on_location(self, drop_off["location"]):
+                        if drop_off != self.drop_offs[self._drop_off_n[0]] and is_on_location(self,
+                                                                                              drop_off["location"]):
                             return move_to(self, self.drop_offs[self._drop_off_n[0]]["location"])
                     # Add dropped goal blocks to found goal blocks
                     self._chosen_goal_block[0]["location"] = self.location
@@ -360,7 +403,7 @@ class Group58Agent(BW4TBrain):
                     # Delete temp vaiables
                     self._chosen_goal_block = []
                     self._drop_off_n = []
+                    self.skip_drop_off = False
                     return DropObject.__name__, {}
                 else:
                     return move_to(self, self.drop_offs[self._drop_off_n[0]]["location"])
-
