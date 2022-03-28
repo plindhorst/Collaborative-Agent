@@ -90,7 +90,7 @@ class MessageHandler:
         self.agent.picked_up_blocks += 1
 
 
-    # What to update when receiving a pickup block message
+    # What to update when receiving a drop block message
     def _process_drop_goal_block(self, msg):
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
