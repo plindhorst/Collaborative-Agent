@@ -25,7 +25,12 @@ if __name__ == "__main__":
             "botclass": Group58Agent,
             "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": True, "lazy": False, "liar": False},
         },
-
+        {
+            "name": "Liar",
+            "botclass": Group58Agent,
+            "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+                         "liar": True},
+        },
     ]
 
     print("Started world...")
