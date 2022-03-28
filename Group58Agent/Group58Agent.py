@@ -11,6 +11,7 @@ from Group58Agent.MessageHandler import MessageHandler
 from Group58Agent.PhaseHandler import PhaseHandler, Phase
 from Group58Agent.RoomChooser import RoomChooser
 from Group58Agent.RoomVisiter import RoomVisiter
+from Group58Agent.Trust import Trust
 from Group58Agent.util import move_to, is_on_location, path
 from bw4t.BW4TBrain import BW4TBrain
 
@@ -69,10 +70,10 @@ class Group58Agent(BW4TBrain):
             action_set=self.action_set,
             algorithm=Navigator.A_STAR_ALGORITHM,
         )
+        self.trust_model = Trust(self)
 
     # Initialize doors and goal
     def _initialize_state(self, state):
-
         # Initialise goal block array
         i = 0
         for block in state.values():
@@ -119,7 +120,8 @@ class Group58Agent(BW4TBrain):
                         "location": (1, 1),
                         "phase": "CHOOSE_ROOM",
                     }
-                )
+                ) 
+        self.trust_model._initTrust(self.other_agents)  
 
     # Returns a room from a room name
     def get_room(self, room_name):
