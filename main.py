@@ -1,9 +1,9 @@
+import argparse
+import time
+
 from Group58Agent.Group58Agent import Group58Agent
-from agents1.BW4THuman import Human
 from bw4t.BW4TWorld import BW4TWorld, DEFAULT_WORLDSETTINGS
 from bw4t.statistics import Statistics
-import argparse
-
 """
 This runs a single session. You have to log in on localhost:3000 and
 press the start button in god mode to start the session.
@@ -61,16 +61,33 @@ if __name__ == "__main__":
     # parse given flag
     parser = argparse.ArgumentParser()
     parser.add_argument("-tournament", action='store_true', help="Are we going to run multiple times", default=False)
+    parser.add_argument("-visualizer", action='store_true', help="Hide web visualizer", default=False)
     parser.add_argument("-n", action='store', help="How many times to run", default=10, type=int)
 
     args = parser.parse_args()
 
     if args.tournament and 1 < args.n:
+        start = time.time()
         print("Running " + str(args.n) + " times.")
-        _DEFAULT_WORLDSETTINGS = DEFAULT_WORLDSETTINGS
+        results = []
+
+        world_settings = DEFAULT_WORLDSETTINGS
+        world_settings["tick_duration"] = 0
+        world_settings["matrx_paused"] = False
+        if args.visualizer:
+            world_settings["run_matrx_api"] = False
+            world_settings["run_matrx_visualizer"] = False
+        world_settings["only_completable"] = True
+
         for i in range(args.n):
-            world = BW4TWorld(agents, only_completable=True, auto_run=True).run()
-            print(Statistics(world.getLogger().getFileName()))
+            world = BW4TWorld(agents, world_settings).run()
+            statistics = Statistics(world.getLogger().getFileName())
+            results.append(statistics)
+            print("\n ### Run " + str(i + 1) + " statistics: ###\n")
+            print(statistics)
+
+        minutes, seconds = divmod(divmod(time.time() - start, 3600)[1], 60)
+        print("\n### DONE!", "({:0>2}:{:05.2f}".format(int(minutes), seconds) + ") ###")
     else:
         print("Started world...")
         world = BW4TWorld(agents).run()
