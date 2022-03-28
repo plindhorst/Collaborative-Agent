@@ -81,8 +81,8 @@ class MessageHandler:
             if old_block["location"] != goal_block["location"]:
                 found_goal_blocks.append(old_block)
         self.agent.found_goal_blocks = found_goal_blocks
+        
         # Update drop off as grabbed
-
         next_drop_off = self.agent.get_next_drop_off()
         if next_drop_off is not None:
             next_drop_off["grabbed"] = True
