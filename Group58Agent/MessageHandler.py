@@ -55,7 +55,7 @@ class MessageHandler:
             "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
         )
         goal_block["location"] = (location[0], location[1])
-
+        goal_block["found_by"] = msg.from_id
         # Add goal block to our agent's goal blocks
         if goal_block not in self.agent.found_goal_blocks:
             self.agent.found_goal_blocks.append(goal_block)
