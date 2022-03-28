@@ -56,7 +56,7 @@ class RoomVisiter:
                     if (self.agent.settings["colourblind"] or block["colour"] == drop_off["colour"]) and block[
                         "shape"] == drop_off["shape"]:
                         if self.agent.settings["colourblind"]:
-                            block["colour"] = "#000000"
+                            block["colour"] = ""
 
                         # Check if block was already found by someone else
                         _exists = False

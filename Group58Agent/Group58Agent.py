@@ -307,8 +307,7 @@ class Group58Agent(BW4TBrain):
                 # Check if block is here and that it matches
                 if block is None or self.drop_offs[self._drop_off_n[0]]["colour"] != block["colour"] or \
                         self.drop_offs[self._drop_off_n[0]]["shape"] != block["shape"]:
-                    # TODO: Decrease Trust here, remember who send block found
-                    # Infrom the other agents that grabbing was unsuccessful by dropping a wrong block
+                    # Inform the other agents that grabbing was unsuccessful by dropping a wrong block
                     self.msg_handler.send_drop_goal_block(
                         {"colour": "#000000", "shape": -1,
                          "location": self.location, "size": 0.5},
@@ -318,7 +317,9 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                     # Reset grabbed and delete temp variables
                     self.drop_offs[self._drop_off_n[0]]["grabbed"] = False
-                    self._chosen_goal_block.pop(0)
+                    chosen_goal_block = self._chosen_goal_block.pop(0)
+                    # Lower trust of agent that said goal block was at location.
+                    self.trust_model._updateTrust(chosen_goal_block['found_by'], -0.1)
                     self._drop_off_n.pop(0)
                     return None, {}
 
