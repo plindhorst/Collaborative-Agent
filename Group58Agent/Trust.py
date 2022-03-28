@@ -40,7 +40,7 @@ class Trust:
             writer = csv.DictWriter(tempfile, fieldnames=self.headers)
             for row in reader:
                 if row['ID'] == str(member):
-                    row['value'] = value
+                    row['value'] = float(row['value']) + value
                 row = {'ID': row['ID'], 'value': row['value']}
                 writer.writerow(row)
 
