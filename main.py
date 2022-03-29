@@ -4,6 +4,7 @@ import time
 from Group58Agent.Group58Agent import Group58Agent
 from bw4t.BW4TWorld import BW4TWorld, DEFAULT_WORLDSETTINGS
 from bw4t.statistics import Statistics
+
 """
 This runs a single session. You have to log in on localhost:3000 and
 press the start button in god mode to start the session.
