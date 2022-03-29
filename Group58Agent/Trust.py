@@ -38,3 +38,11 @@ class Trust:
                 writer.writerow(row)
 
         shutil.move(tempfile.name, self.file)
+
+    # Get trust value of member
+    def _getTrust(self, member):
+         with open(self.file, 'r', newline='') as file:
+            reader = csv.DictReader(file, fieldnames=self.headers)
+            for row in reader:
+                if row['ID'] == str(member):
+                    return row['value']
