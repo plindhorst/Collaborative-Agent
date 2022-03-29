@@ -34,6 +34,7 @@ class Group58Agent(BW4TBrain):
         self.room_chooser = RoomChooser(self)
         self.room_visiter = RoomVisiter(self)
         self.goal_dropper = GoalDropper(self)
+        self.trust_model = None
 
         # We start by choosing a room
         self.phase = Phase.CHOOSE_ROOM
@@ -70,7 +71,6 @@ class Group58Agent(BW4TBrain):
             action_set=self.action_set,
             algorithm=Navigator.A_STAR_ALGORITHM,
         )
-        self.trust_model = Trust(self)
 
     # Initialize doors and goal
     def _initialize_state(self, state):
@@ -120,8 +120,8 @@ class Group58Agent(BW4TBrain):
                         "location": (1, 1),
                         "phase": "CHOOSE_ROOM",
                     }
-                ) 
-        self.trust_model._initTrust(self.other_agents)  
+                )
+        self.trust_model = Trust(self)
 
     # Returns a room from a room name
     def get_room(self, room_name):
@@ -317,10 +317,9 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                     # Reset grabbed and delete temp variables
                     self.drop_offs[self._drop_off_n[0]]["grabbed"] = False
-                    chosen_goal_block = self._chosen_goal_block.pop(0)
                     # Lower trust of agent that said goal block was at location.
-                    if (chosen_goal_block.get("found_by")):
-                        self.trust_model._updateTrust(chosen_goal_block["found_by"], -0.1)
+                    if self.agent_id != self._chosen_goal_block[-1]["found_by"]:
+                        self.trust_model.decrease_found_goal(self._chosen_goal_block[-1]["found_by"])
                     self._drop_off_n.pop(0)
                     return None, {}
 
@@ -335,6 +334,10 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                 else:
                     self.phase = Phase.DROP_GOAL
+
+                # Increase trust of agent that said goal block was at location.
+                if self.agent_id != self._chosen_goal_block[-1]["found_by"]:
+                    self.trust_model.increase_found_goal(self._chosen_goal_block[-1]["found_by"])
 
                 # Save the ID to later know what to drop
                 self.held_block_ids.append(block["obj_id"])

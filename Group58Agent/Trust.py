@@ -1,48 +1,86 @@
 import csv
 import os
-import shutil
-from tempfile import NamedTemporaryFile
+
+TRUST_FOLDER = "./trust/"
+TRUST_POINTS = {"drop_off": [5.0, -2.0, 2.0], "room_search": [5.0, -1.0, 1.0], "found_goal": [5.0, -3.0, 3.0]}
+
 
 class Trust:
     def __init__(self, agent):
-        self.headers = ['ID', 'value']
-        self.file = 'Group58Agent/trust' + str(agent.agent_id) + '.csv'
+        self.agent = agent
+        self.headers = ['agent_id', 'drop_off', 'room_search', 'found_goal']
+        self.file = TRUST_FOLDER + str(agent.agent_id) + '.csv'
 
-    # Initialize file if not existent
-    def _initTrust(self, members):
-        if os.path.exists(self.file):
-            # If file not empty dont recreate
-            with open(self.file, 'r') as file:
-                csv_dict = [row for row in csv.DictReader(file)]
-                if len(csv_dict) != 0:
-                    return
+        if not os.path.exists(TRUST_FOLDER):
+            os.makedirs(TRUST_FOLDER)
 
-        # Initialise file
-        with open(self.file, 'w', newline='') as file:
+        if not os.path.exists(self.file):
+            with open(self.file, 'w+', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=self.headers)
+                writer.writeheader()
+
+        agents = self._get_trust()
+
+        # Check if all agents have a row in trust file
+        with open(self.file, 'a', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=self.headers)
+
+            for other_agent in self.agent.other_agents:
+                if other_agent["agent_id"] not in [_agent["agent_id"] for _agent in agents]:
+                    writer.writerow({'agent_id': other_agent["agent_id"],
+                                     'drop_off': TRUST_POINTS['drop_off'][0],
+                                     'room_search': TRUST_POINTS['room_search'][0],
+                                     'found_goal': TRUST_POINTS['found_goal'][0]})
+
+    # Update trust based on agent_id, action (header) and value
+    def _update_trust(self, agent_id, action, value):
+        print("update trust", agent_id, action, value)
+        agents = self._get_trust()
+        for agent in agents:
+            if agent["agent_id"] == agent_id:
+                agent[action] = str(float(agent[action]) + value)
+                break
+        # overwrite existing csv file
+        with open(self.file, 'w+', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=self.headers)
             writer.writeheader()
-            for member in members:
-                writer.writerow({'ID': member["agent_id"],'value': 0.5})
+            writer.writerows(agents)
 
-    # Update trust based on value
-    def _updateTrust(self, member, value):
-        tempfile = NamedTemporaryFile(mode='w', delete=False, newline='')
+    # Get trust as dictionary objects
+    def _get_trust(self):
+        agents = []
 
-        with open(self.file, 'r', newline='') as file, tempfile:
-            reader = csv.DictReader(file, fieldnames=self.headers)
-            writer = csv.DictWriter(tempfile, fieldnames=self.headers)
-            for row in reader:
-                if row['ID'] == str(member):
-                    row['value'] = float(row['value']) + value
-                row = {'ID': row['ID'], 'value': row['value']}
-                writer.writerow(row)
+        with open(self.file, 'r') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # skip headers
+            for row in csv_reader:
+                agent = {}
+                for i, column in enumerate(row):
+                    agent[self.headers[i]] = column
 
-        shutil.move(tempfile.name, self.file)
+                agents.append(agent)
+        return agents
 
-    # Get trust value of member
-    def _getTrust(self, member):
-         with open(self.file, 'r', newline='') as file:
-            reader = csv.DictReader(file, fieldnames=self.headers)
-            for row in reader:
-                if row['ID'] == str(member):
-                    return row['value']
+    # Decrease drop off trust
+    def decrease_drop_off(self, agent_id):
+        self._update_trust(agent_id, "drop_off", TRUST_POINTS["drop_off"][1])
+
+    # Increase drop off trust
+    def increase_drop_off(self, agent_id):
+        self._update_trust(agent_id, "drop_off", TRUST_POINTS["drop_off"][2])
+
+    # Decrease found goal trust
+    def decrease_found_goal(self, agent_id):
+        self._update_trust(agent_id, "found_goal", TRUST_POINTS["found_goal"][1])
+
+    # Increase found goal trust
+    def increase_found_goal(self, agent_id):
+        self._update_trust(agent_id, "found_goal", TRUST_POINTS["found_goal"][2])
+
+    # Decrease room search trust
+    def decrease_room_search(self, agent_id):
+        self._update_trust(agent_id, "room_search", TRUST_POINTS["room_search"][1])
+
+    # Increase room search trust
+    def increase_room_search(self, agent_id):
+        self._update_trust(agent_id, "room_search", TRUST_POINTS["room_search"][2])

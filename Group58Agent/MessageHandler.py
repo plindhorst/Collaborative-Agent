@@ -106,7 +106,7 @@ class MessageHandler:
         for drop_off in self.agent.drop_offs:
             if drop_off["location"] == drop_off_location:
                 drop_off["delivered"] = True
-                self.agent.trust_model._updateTrust(msg.from_id, 0.05)
+                self.agent.trust_model.increase_drop_off(msg.from_id)
                 return
 
         # If we are here then the dropped block is not delivered
@@ -116,7 +116,7 @@ class MessageHandler:
         for drop_off in self.agent.drop_offs:
             if goal_block["colour"] == drop_off["colour"] and goal_block["shape"] == drop_off["shape"]:
                 self.agent.found_goal_blocks.append(goal_block)
-                self.agent.trust_model._updateTrust(msg.from_id, -0.07)
+                self.agent.trust_model.decrease_drop_off(msg.from_id)
         # Undo all undelivered grabbed drop offs since we do not know for which drop off the block was mis-dropped
         for drop_off in self.agent.drop_offs:
             if not drop_off["delivered"] and drop_off["grabbed"]:
