@@ -319,7 +319,8 @@ class Group58Agent(BW4TBrain):
                     self.drop_offs[self._drop_off_n[0]]["grabbed"] = False
                     chosen_goal_block = self._chosen_goal_block.pop(0)
                     # Lower trust of agent that said goal block was at location.
-                    self.trust_model._updateTrust(chosen_goal_block['found_by'], -0.1)
+                    if (chosen_goal_block.get("found_by")):
+                        self.trust_model._updateTrust(chosen_goal_block["found_by"], -0.1)
                     self._drop_off_n.pop(0)
                     return None, {}
 
