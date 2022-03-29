@@ -37,3 +37,5 @@ if __name__ == "__main__":
     world = BW4TWorld(agents).run()
     print("DONE!")
     print(Statistics(world.getLogger().getFileName()))
+
+    world2 = BW4TWorld(agents).run()

@@ -18,7 +18,7 @@ class GoalDropper:
         current_goal_blocks_found = []
         for found_goal_block in self.agent.found_goal_blocks:
             if (
-                    found_goal_block["colour"] == current_drop_off["colour"]
+                    found_goal_block["colour"] == current_drop_off["colour"] or found_goal_block["colour"] == ""
                     and found_goal_block["shape"] == current_drop_off["shape"]
             ):
                 start_location = self.agent.state[agent_id]["location"]
