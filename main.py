@@ -31,9 +31,18 @@ if __name__ == "__main__":
             "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": True},
         },
+        # {
+        #     "name": "Normal",
+        #     "botclass": Group58Agent,
+        #     "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+        #                  "liar": False},
+        # },
+
     ]
 
     print("Started world...")
     world = BW4TWorld(agents).run()
     print("DONE!")
     print(Statistics(world.getLogger().getFileName()))
+
+    world2 = BW4TWorld(agents).run()
