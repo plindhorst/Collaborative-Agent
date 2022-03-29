@@ -2,8 +2,11 @@ import csv
 import os
 
 TRUST_FOLDER = "./trust/"
-TRUST_POINTS = {"drop_off": [5.0, -2.0, 2.0], "room_search": [5.0, -1.0, 1.0], "found_goal": [5.0, -3.0, 3.0]}
+TRUST_POINTS = {"drop_off": [5.0, -2.0, 2.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
+                "found_goal": [5.0, -3.0, 3.0, 0.0]}
 
+
+# initial value, deacrease, increase, trust threshold
 
 class Trust:
     def __init__(self, agent):
@@ -32,9 +35,17 @@ class Trust:
                                      'room_search': TRUST_POINTS['room_search'][0],
                                      'found_goal': TRUST_POINTS['found_goal'][0]})
 
+    # Returns true if we can trust an agent to perform a certain task
+    def _can_trust(self, agent_id, action):
+        agents = self._get_trust()
+        for agent in agents:
+            if agent["agent_id"] == agent_id:
+                return agent[action] < TRUST_POINTS[action][3]
+
     # Update trust based on agent_id, action (header) and value
     def _update_trust(self, agent_id, action, value):
-        print("update trust", agent_id, action, value)
+        if self.agent.agent_id == agent_id:
+            return
         agents = self._get_trust()
         for agent in agents:
             if agent["agent_id"] == agent_id:
@@ -61,6 +72,9 @@ class Trust:
                 agents.append(agent)
         return agents
 
+    def can_trust_drop_off(self, agent_id):
+        return self._can_trust(agent_id, "drop_off")
+
     # Decrease drop off trust
     def decrease_drop_off(self, agent_id):
         self._update_trust(agent_id, "drop_off", TRUST_POINTS["drop_off"][1])
@@ -69,6 +83,9 @@ class Trust:
     def increase_drop_off(self, agent_id):
         self._update_trust(agent_id, "drop_off", TRUST_POINTS["drop_off"][2])
 
+    def can_trust_found_goal(self, agent_id):
+        return self._can_trust(agent_id, "found_goal")
+
     # Decrease found goal trust
     def decrease_found_goal(self, agent_id):
         self._update_trust(agent_id, "found_goal", TRUST_POINTS["found_goal"][1])
@@ -76,6 +93,9 @@ class Trust:
     # Increase found goal trust
     def increase_found_goal(self, agent_id):
         self._update_trust(agent_id, "found_goal", TRUST_POINTS["found_goal"][2])
+
+    def can_trust_room_search(self, agent_id):
+        return self._can_trust(agent_id, "room_search")
 
     # Decrease room search trust
     def decrease_room_search(self, agent_id):

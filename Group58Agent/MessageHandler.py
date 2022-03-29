@@ -49,10 +49,10 @@ class MessageHandler:
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         goal_block["location"] = (location[0], location[1])
         goal_block["found_by"] = msg.from_id
@@ -67,10 +67,10 @@ class MessageHandler:
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         goal_block["location"] = (location[0], location[1])
 
@@ -80,14 +80,11 @@ class MessageHandler:
             if old_block["location"] != goal_block["location"]:
                 found_goal_blocks.append(old_block)
         self.agent.found_goal_blocks = found_goal_blocks
-        
+
         # Update drop off as grabbed
         next_drop_off = self.agent.get_next_drop_off()
         if next_drop_off is not None:
             next_drop_off["grabbed"] = True
-        # Update picked up block count
-        self.agent.picked_up_blocks += 1
-
 
     # What to update when receiving a drop block message
     def _process_drop_goal_block(self, msg):
@@ -96,10 +93,10 @@ class MessageHandler:
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         drop_off_location = (location[0], location[1])
 
@@ -112,6 +109,7 @@ class MessageHandler:
         # If we are here then the dropped block is not delivered
         # Add dropped goal blocks to found goal blocks
         goal_block["location"] = drop_off_location
+        goal_block["found_by"] = msg.from_id
         # Check if the block is a goal block
         for drop_off in self.agent.drop_offs:
             if goal_block["colour"] == drop_off["colour"] and goal_block["shape"] == drop_off["shape"]:
