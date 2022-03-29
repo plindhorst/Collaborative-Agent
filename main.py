@@ -1,4 +1,6 @@
 import argparse
+import csv
+import os
 import time
 
 from Group58Agent.Group58Agent import Group58Agent
@@ -9,6 +11,26 @@ from bw4t.statistics import Statistics
 This runs a single session. You have to log in on localhost:3000 and
 press the start button in god mode to start the session.
 """
+
+
+def get_trust_from_file(agent_id):
+    agents_ = []
+    file = "./trust/" + agent_id + ".csv"
+
+    if not os.path.exists(file):
+        return agents_
+
+    with open(file, 'r') as file:
+        csv_reader = csv.reader(file)
+        headers = next(csv_reader)
+        for row in csv_reader:
+            agent_ = {}
+            for i_, column in enumerate(row):
+                agent_[headers[i_]] = column
+
+            agents_.append(agent_)
+    return agents_
+
 
 if __name__ == "__main__":
     agents = [
@@ -34,25 +56,25 @@ if __name__ == "__main__":
         #                  "liar": True},
         # },
         {
-            "name": "Normal0",
+            "name": "normal0",
             "botclass": Group58Agent,
             "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "Normal1",
+            "name": "normal1",
             "botclass": Group58Agent,
             "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "Normal2",
+            "name": "normal2",
             "botclass": Group58Agent,
             "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "Normal3",
+            "name": "normal3",
             "botclass": Group58Agent,
             "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": False},
@@ -71,6 +93,10 @@ if __name__ == "__main__":
         start = time.time()
         print("Running " + str(args.n) + " times.")
         results = []
+        trust = {}
+
+        for agent in agents:
+            trust[agent["name"]] = [get_trust_from_file(agent["name"])]
 
         world_settings = DEFAULT_WORLDSETTINGS
         world_settings["tick_duration"] = 0
@@ -86,7 +112,10 @@ if __name__ == "__main__":
             results.append(statistics)
             print("\n ### Run " + str(i + 1) + " statistics: ###\n")
             print(statistics)
+            for agent in agents:
+                trust[agent["name"]].append(get_trust_from_file(agent["name"]))
 
+        # print(len(trust), len(trust["normal1"]))
         minutes, seconds = divmod(divmod(time.time() - start, 3600)[1], 60)
         print("\n### DONE!", "({:0>2}:{:05.2f}".format(int(minutes), seconds) + ") ###")
     else:

@@ -53,8 +53,9 @@ DEFAULT_WORLDSETTINGS: dict = {
     'block_sense_range': 1,  # the range with which agents detect blocks
     'other_sense_range':  np.inf , # the range with which agents detect other objects (walls, doors, etc.)
     'agent_memory_decay': 5,  # we want to memorize states for seconds / tick_duration ticks
-    'fov_occlusion' : True # true if walls block vision. Not sure if this works at all.
+    'fov_occlusion' : True, # true if walls block vision. Not sure if this works at all.
 
+    'only_completable' : False
 }
 
 
