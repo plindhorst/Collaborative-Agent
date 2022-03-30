@@ -130,7 +130,7 @@ class MessageHandler:
             msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         if self.agent.trust_model._can_trust_overall(msg.from_id):
-            self.agent.trust_model._update_trust(trust["agent"], trust["action"], 1.0)
+            self.agent.trust_model._update_trust(trust["agent"], trust["action"], -1.0)
 
     # Go over received messages and perform updates
     def read_messages(self):
@@ -200,9 +200,9 @@ class MessageHandler:
 
     def send_decrease_trust_value(self, agent, action):
         self._send(
-            'Decrease trust {"agent": '
+            'Decrease trust {"agent": "'
             + str(agent)
-            + ', "action": '
+            + '", "action": "'
             + str(action)
-            + '}'
+            + '"}'
         )
