@@ -39,83 +39,57 @@ def get_trust_from_file(agent_id, agents):
     return agents_
 
 
-def append_trust_round(agents_, trust_):
+def append_trust_round(agents_, trust_, trust_all_):
     round_idx = len(trust_[0][agents_[0]["name"]][0]["drop_off"])
     for j, agent_ in enumerate(agents_):
         trust_from_file = get_trust_from_file(agent_["name"], agents_)
 
-        # [{'normal0': [{'drop_off': []}, {'found_goal': []}, {'room_search': []}]},
-        # {'normal1': [{'drop_off': []}, {'found_goal': []}, {'room_search': []}]},
-        # {'normal2': [{'drop_off': []}, {'found_goal': []}, {'room_search': []}]},
-        # {'normal3': [{'drop_off': []}, {'found_goal': []}, {'room_search': []}]}]
-        # print(trust_from_file)
-        # [{'agent_id': 'normal1', 'drop_off': '-25.0', 'room_search': '5.0', 'found_goal': '29.0'},
-        # {'agent_id': 'normal2', 'drop_off': '25.0', 'room_search': '5.0', 'found_goal': '35.0'},
-        # {'agent_id': 'normal3', 'drop_off': '13.0', 'room_search': '5.0', 'found_goal': '20.0'}]
         for trust_other in trust_from_file:
-            for agent_trust_ in trust_:
+            for i, agent_trust_ in enumerate(trust_):
                 for agent_name in agent_trust_:
                     if agent_name == trust_other["agent_id"]:
                         for action_ in agent_trust_[agent_name]:
                             for action_name in action_:
                                 if round_idx == len(action_[action_name]):
                                     action_[action_name].append(0)
-                                action_[action_name][round_idx] = (
-                                        float(trust_other[action_name]) + action_[action_name][round_idx])
+                                action_[action_name][round_idx] += float(trust_other[action_name])
+        for trust_other in trust_from_file:
+            for i, agent_trust_ in enumerate(trust_all_):
+                for agent_name in agent_trust_:
+                    if agent_name == trust_other["agent_id"]:
+                        if len(agent_trust_[agent_name]) == round_idx:
+                            agent_trust_[agent_name].append(0)
+
+                        for action_ in trust_[i][agent_name]:
+                            for action_name in action_:
+                                agent_trust_[agent_name][round_idx] += float(trust_other[action_name])
 
 
 if __name__ == "__main__":
     agents = [
-        # {
-        #     "name": "Lazy",
-        #     "botclass": Group58Agent,
-        #     "settings": {"color": "#FFFF00", "shape": 1, "strong": False, "colourblind": False, "lazy": True, "liar": False},
-        # },
-        # {
-        #     "name": "Strong",
-        #     "botclass": Group58Agent,
-        #     "settings": {"color": "#0000FF", "shape": 2, "strong": True, "colourblind": False, "lazy": False, "liar": False},
-        # },
-        # {
-        #     "name": "ColourBlind",
-        #     "botclass": Group58Agent,
-        #     "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": True, "lazy": False, "liar": False},
-        # },
-        # {
-        #     "name": "Liar",
-        #     "botclass": Group58Agent,
-        #     "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
-        #                  "liar": True},
-        # },
         {
-            "name": "normal0",
+            "name": "Lazy",
             "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+            "settings": {"color": "#FFFF00", "shape": 1, "strong": False, "colourblind": False, "lazy": True,
                          "liar": False},
         },
         {
-            "name": "normal1",
+            "name": "Strong",
             "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+            "settings": {"color": "#0000FF", "shape": 2, "strong": True, "colourblind": False, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "normal2",
+            "name": "ColourBlind",
             "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+            "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": True, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "normal3",
+            "name": "Liar",
             "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
-                         "liar": False},
-        },
-        {
-            "name": "normal4",
-            "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
-                         "liar": False},
+            "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
+                         "liar": True},
         },
     ]
 
@@ -139,15 +113,18 @@ if __name__ == "__main__":
 
         # Initialize trust array
         trust = []
+        trust_all = []
         for agent in agents:
             trust.append({agent["name"]: [{"drop_off": []}, {"found_goal": []}, {"room_search": []}]})
+            trust_all.append({agent["name"]: []})
 
-        append_trust_round(agents, trust)
+        append_trust_round(agents, trust, trust_all)
 
         world_settings = DEFAULT_WORLDSETTINGS
-        world_settings["tick_duration"] = 0
+        world_settings["tick_duration"] = 0.025
         world_settings["matrx_paused"] = False
         if args.visualizer:
+            world_settings["tick_duration"] = 0
             world_settings["run_matrx_api"] = False
             world_settings["run_matrx_visualizer"] = False
         world_settings["only_completable"] = True
@@ -159,13 +136,12 @@ if __name__ == "__main__":
             print("\n### Run " + str(i + 1) + " statistics: ###\n")
             print(statistics)
 
-            append_trust_round(agents, trust)
+            append_trust_round(agents, trust, trust_all)
 
         minutes, seconds = divmod(divmod(time.time() - start, 3600)[1], 60)
         print("\n### DONE!", "({:0>2}:{:05.2f}".format(int(minutes), seconds) + ") ###\n")
 
         # Get min and max values
-
         max_ = -np.inf
         min_ = np.inf
         for i, agent_trust in enumerate(trust):
@@ -182,6 +158,23 @@ if __name__ == "__main__":
             if min_ > new_min_:
                 min_ = new_min_
 
+        fig = plt.gcf()
+        plt.scatter(0, min_ / (len(agents) - 1), s=0)
+        plt.scatter(0, max_ / (len(agents) - 1), s=0)
+        x = np.arange(args.n + 1)
+
+        for i, agent in enumerate(agents):
+            plt.plot(x, [y / (len(agents) - 1) for y in trust_all[i][agent["name"]]], label=agent["name"])
+
+        plt.xticks(x)
+        plt.xlabel("Rounds")
+        plt.ylabel("Trust")
+        plt.title("Average Trustworthiness")
+        plt.legend()
+        fig.set_size_inches(20, 10)
+        plt.savefig("./results/all_agents.png", bbox_inches="tight")
+        plt.close(fig)
+
         for i, agent_trust in enumerate(trust):
             fig = plt.gcf()
             plt.scatter(0, min_ / (len(agents) - 1), s=0)
@@ -195,6 +188,7 @@ if __name__ == "__main__":
             plt.plot(x, [y / (len(agents) - 1) for y in agent_trust[agents[i]["name"]][2]["room_search"]], c="red",
                      label="room_search")
 
+            plt.xticks(x)
             plt.xlabel("Rounds")
             plt.ylabel("Trust")
             plt.title("Trustworthiness of '" + agents[i]["name"] + "'")
