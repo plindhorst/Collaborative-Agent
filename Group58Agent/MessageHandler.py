@@ -124,6 +124,14 @@ class MessageHandler:
             if not drop_off["delivered"] and drop_off["grabbed"]:
                 drop_off["grabbed"] = False
 
+    #What to update when receiving a decrease trust message
+    def _process_decrease_trust_value(self, msg):
+        trust = json.loads(
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
+        )
+        if self.agent.trust_model._can_trust_overall(msg.from_id):
+            self.agent.trust_model._update_trust(trust["agent"], trust["action"], 1.0)
+
     # Go over received messages and perform updates
     def read_messages(self):
         for msg in self.agent.received_messages:
@@ -140,6 +148,8 @@ class MessageHandler:
                     self._process_pickup_goal_block(msg)
                 elif "Dropped goal block" in msg.content:
                     self._process_drop_goal_block(msg)
+                elif "Decrease trust" in msg.content:
+                    self._process_decrease_trust_value(msg)
         # Delete messages
         self.agent.received_messages = []
 
@@ -186,4 +196,13 @@ class MessageHandler:
             + goal_block["colour"]
             + '"} at location '
             + str(drop_off_location)
+        )
+
+    def send_decrease_trust_value(self, agent, action):
+        self._send(
+            'Decrease trust {"agent": '
+            + str(agent)
+            + ', "action": '
+            + str(action)
+            + '}'
         )
