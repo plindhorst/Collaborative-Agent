@@ -2,7 +2,7 @@ import csv
 import os
 
 TRUST_FOLDER = "./trust/"
-TRUST_POINTS = {"drop_off": [5.0, -2.0, 2.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
+TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
                 "found_goal": [5.0, -3.0, 3.0, 0.0]}
 
 
