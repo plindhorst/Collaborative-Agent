@@ -184,6 +184,9 @@ class Group58Agent(BW4TBrain):
             # All rooms have been visited
             if room is None:
                 self.phase = Phase.CHOOSE_GOAL
+                if self.settings["strong"] and len(self._chosen_goal_blocks) > 0:
+                    self.phase = Phase.DROP_GOAL
+
                 return None, {}
 
             # Check if we are the closest agent (with phase CHOOSE_ROOM) to the room
@@ -401,6 +404,7 @@ class Group58Agent(BW4TBrain):
                             return move_to(self, (2, 2))
 
                     goal_block["found_by"] = self.agent_id
+                    goal_block["location"] = self.location
                     self.found_goal_blocks.append(goal_block)
                     # Inform other agents that we dropped the goal block
                     self.msg_handler.send_drop_goal_block(
@@ -408,8 +412,11 @@ class Group58Agent(BW4TBrain):
                         self.location,
                     )
 
-                    self._chosen_goal_blocks.pop()
+                    self._chosen_goal_blocks.pop(0)
                     self.phase = Phase.CHOOSE_GOAL
+                    if self.settings["strong"] and len(self._chosen_goal_blocks) > 0:
+                        self.phase = Phase.DROP_GOAL
+
                     return DropObject.__name__, {"object_id": goal_block["obj_id"]}
                 else:
                     return move_to(self, (2, 2))

@@ -45,9 +45,10 @@ def append_trust_round(agents_, trust_, trust_all_):
         trust_from_file = get_trust_from_file(agent_["name"], agents_)
 
         for trust_other in trust_from_file:
-            for i, agent_trust_ in enumerate(trust_):
+            for agent_trust_ in trust_:
                 for agent_name in agent_trust_:
                     if agent_name == trust_other["agent_id"]:
+
                         for action_ in agent_trust_[agent_name]:
                             for action_name in action_:
                                 if round_idx == len(action_[action_name]):
@@ -65,28 +66,29 @@ def append_trust_round(agents_, trust_, trust_all_):
                                 agent_trust_[agent_name][round_idx] += float(trust_other[action_name])
 
 
+
 if __name__ == "__main__":
     agents = [
         {
-            "name": "Lazy",
+            "name": "lazy",
             "botclass": Group58Agent,
             "settings": {"color": "#FFFF00", "shape": 1, "strong": False, "colourblind": False, "lazy": True,
                          "liar": False},
         },
         {
-            "name": "Strong",
+            "name": "strong",
             "botclass": Group58Agent,
             "settings": {"color": "#0000FF", "shape": 2, "strong": True, "colourblind": False, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "ColourBlind",
+            "name": "colourblind",
             "botclass": Group58Agent,
             "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": True, "lazy": False,
                          "liar": False},
         },
         {
-            "name": "Liar",
+            "name": "liar",
             "botclass": Group58Agent,
             "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
                          "liar": True},
@@ -108,7 +110,10 @@ if __name__ == "__main__":
             os.makedirs("./results/")
 
         start = time.time()
-        print("Running " + str(args.n) + " times.")
+        if args.visualizer:
+            print("Running " + str(args.n) + " times. (no visualizer)")
+        else:
+            print("Running " + str(args.n) + " times.")
         results = []
 
         # Initialize trust array
