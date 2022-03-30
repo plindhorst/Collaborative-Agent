@@ -1,7 +1,6 @@
 import json
 
 from matrx.messages import Message
-
 from Group58Agent.PhaseHandler import Phase
 
 
@@ -50,15 +49,17 @@ class MessageHandler:
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         goal_block["location"] = (location[0], location[1])
-
+        goal_block["found_by"] = msg.from_id
         # Add goal block to our agent's goal blocks
-        if goal_block not in self.agent.found_goal_blocks:
+        if  msg.from_id != self.agent.agent_id and \
+            self.agent.trust_model.can_trust_found_goal(msg.from_id) and \
+            goal_block not in self.agent.found_goal_blocks:
             self.agent.found_goal_blocks.append(goal_block)
 
     # What to update when receiving a pickup block message
@@ -68,10 +69,10 @@ class MessageHandler:
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         goal_block["location"] = (location[0], location[1])
 
@@ -81,45 +82,55 @@ class MessageHandler:
             if old_block["location"] != goal_block["location"]:
                 found_goal_blocks.append(old_block)
         self.agent.found_goal_blocks = found_goal_blocks
+
         # Update drop off as grabbed
-
         next_drop_off = self.agent.get_next_drop_off()
-        if next_drop_off is not None:
+        if  msg.from_id != self.agent.agent_id and \
+            self.agent.trust_model.can_trust_drop_off(msg.from_id) and \
+            next_drop_off is not None:
             next_drop_off["grabbed"] = True
-        # Update picked up block count
-        self.agent.picked_up_blocks += 1
 
-
-    # What to update when receiving a pickup block message
+    # What to update when receiving a drop block message
     def _process_drop_goal_block(self, msg):
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.CHOOSE_GOAL)
 
         # Parse message content
         goal_block = json.loads(
-            msg.content[msg.content.index("{") : msg.content.index("}") + 1]
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
         location = json.loads(
-            "[" + msg.content[msg.content.index("(") + 1 : msg.content.index(")")] + "]"
+            "[" + msg.content[msg.content.index("(") + 1: msg.content.index(")")] + "]"
         )
         drop_off_location = (location[0], location[1])
 
         for drop_off in self.agent.drop_offs:
             if drop_off["location"] == drop_off_location:
                 drop_off["delivered"] = True
+                self.agent.trust_model.increase_drop_off(msg.from_id)
                 return
 
         # If we are here then the dropped block is not delivered
         # Add dropped goal blocks to found goal blocks
         goal_block["location"] = drop_off_location
+        goal_block["found_by"] = msg.from_id
         # Check if the block is a goal block
         for drop_off in self.agent.drop_offs:
             if goal_block["colour"] == drop_off["colour"] and goal_block["shape"] == drop_off["shape"]:
                 self.agent.found_goal_blocks.append(goal_block)
+                self.agent.trust_model.decrease_drop_off(msg.from_id)
         # Undo all undelivered grabbed drop offs since we do not know for which drop off the block was mis-dropped
         for drop_off in self.agent.drop_offs:
             if not drop_off["delivered"] and drop_off["grabbed"]:
                 drop_off["grabbed"] = False
+
+    #What to update when receiving a decrease trust message
+    def _process_decrease_trust_value(self, msg):
+        trust = json.loads(
+            msg.content[msg.content.index("{"): msg.content.index("}") + 1]
+        )
+        if self.agent.trust_model._can_trust_overall(msg.from_id):
+            self.agent.trust_model._update_trust(trust["agent"], trust["action"], -1.0)
 
     # Go over received messages and perform updates
     def read_messages(self):
@@ -137,6 +148,8 @@ class MessageHandler:
                     self._process_pickup_goal_block(msg)
                 elif "Dropped goal block" in msg.content:
                     self._process_drop_goal_block(msg)
+                elif "Decrease trust" in msg.content:
+                    self._process_decrease_trust_value(msg)
         # Delete messages
         self.agent.received_messages = []
 
@@ -183,4 +196,13 @@ class MessageHandler:
             + goal_block["colour"]
             + '"} at location '
             + str(drop_off_location)
+        )
+
+    def send_decrease_trust_value(self, agent, action):
+        self._send(
+            'Decrease trust {"agent": "'
+            + str(agent)
+            + '", "action": "'
+            + str(action)
+            + '"}'
         )

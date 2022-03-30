@@ -17,10 +17,8 @@ class GoalDropper:
         distances = []
         current_goal_blocks_found = []
         for found_goal_block in self.agent.found_goal_blocks:
-            if (
-                    found_goal_block["colour"] == current_drop_off["colour"]
-                    and found_goal_block["shape"] == current_drop_off["shape"]
-            ):
+            if (found_goal_block["colour"] == current_drop_off["colour"] or found_goal_block["colour"] == "") \
+                    and found_goal_block["shape"] == current_drop_off["shape"]:
                 start_location = self.agent.state[agent_id]["location"]
                 target_location = found_goal_block["location"]
                 distances.append(
@@ -66,12 +64,12 @@ class GoalDropper:
         return False
 
     # Returns the block at a certain location
-    def get_block_info(self, location):
+    def get_block_info(self, find_block):
         blocks = self.agent.state.get_with_property({"is_collectable": True})
         if blocks is not None:
             # Go over each block in the field of view
             for block in blocks:
-                if location == block["location"]:
+                if find_block["location"] == block["location"]:
                     block = {"colour": block["visualization"]["colour"], "shape": block["visualization"]["shape"],
                              "location": block["location"], "size": block["visualization"]["size"],
                              "obj_id": block["obj_id"]}

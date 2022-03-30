@@ -1,3 +1,5 @@
+results
+
 /venv/
 .idea/*
 /.project
@@ -139,3 +141,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.csv
