@@ -16,14 +16,14 @@ from bw4t.CollectionGoal import CollectionGoal
 from bw4t.BW4TLogger import BW4TLogger
 from bw4t.BW4THumanBrain import HumanBrain
 
-DEFAULT_WORLDSETTINGS: dict={
-    'deadline': 3000, # Ticks after which world terminates anyway
-    'tick_duration': 0.1, # Set to 0 for fastest possible runs.
+DEFAULT_WORLDSETTINGS: dict = {
+    'deadline': 3000,  # Ticks after which world terminates anyway
+    'tick_duration': 0.1,  # Set to 0 for fastest possible runs.
     'random_seed': 1,
     'verbose': False,
-    'matrx_paused':True,
-    'run_matrx_api':True, # If you want to allow web connection
-    'run_matrx_visualizer':True, # if you want to allow web visualizer
+    'matrx_paused': True,
+    'run_matrx_api': True,  # If you want to allow web connection
+    'run_matrx_visualizer': True,  # if you want to allow web visualizer
 
     'key_action_map': {  # For the human agents
         'w': MoveNorth.__name__,
@@ -53,8 +53,9 @@ DEFAULT_WORLDSETTINGS: dict={
     'block_sense_range': 1,  # the range with which agents detect blocks
     'other_sense_range':  np.inf , # the range with which agents detect other objects (walls, doors, etc.)
     'agent_memory_decay': 5,  # we want to memorize states for seconds / tick_duration ticks
-    'fov_occlusion' : True # true if walls block vision. Not sure if this works at all.
+    'fov_occlusion' : True, # true if walls block vision. Not sure if this works at all.
 
+    'only_completable' : False
 }
 
 
@@ -68,7 +69,8 @@ class BW4TWorld:
     internally creates the gridworld using WorldBuilder.
     
     '''
-    def __init__(self, agents:List[dict], worldsettings:dict=DEFAULT_WORLDSETTINGS):
+
+    def __init__(self, agents: List[dict], worldsettings: dict = DEFAULT_WORLDSETTINGS):
         '''
            @param agents a list like 
             [
@@ -78,8 +80,10 @@ class BW4TWorld:
             Names must all be unique.
             Check BW4TBrain for more on the agents specification.
         '''
-        self._worldsettings=worldsettings;
-        self._agents=agents
+        self._worldsettings = worldsettings;
+        self._agents = agents
+        self._generated_blocks = []
+        self._only_completable = worldsettings["only_completable"]
 
         np.random.seed(worldsettings['random_seed'])
         world_size = self.world_size()
@@ -89,12 +93,13 @@ class BW4TWorld:
 
         # Create our world builder
         self._builder = WorldBuilder(shape=world_size, tick_duration=worldsettings['tick_duration'],
-           random_seed=worldsettings['random_seed'],
-           run_matrx_api=worldsettings['run_matrx_api'],
-           run_matrx_visualizer=worldsettings['run_matrx_visualizer'],
-           verbose=worldsettings['verbose'], simulation_goal=goal)
+                                     random_seed=worldsettings['random_seed'],
+                                     run_matrx_api=worldsettings['run_matrx_api'],
+                                     run_matrx_visualizer=worldsettings['run_matrx_visualizer'],
+                                     verbose=worldsettings['verbose'], simulation_goal=goal)
 
-        self._builder.api_info['_matrx_paused']=worldsettings['matrx_paused']
+        self._builder.api_info['_matrx_paused'] = worldsettings["matrx_paused"]
+        self._builder.api_info['matrx_paused'] = worldsettings["matrx_paused"]
 
         # Add the world bounds (not needed, as agents cannot 'walk off' the grid, but for visual effects)
         self._builder.add_room(top_left_location=(0, 0), width=world_size[0], height=world_size[1], name="world_bounds")
@@ -152,23 +157,25 @@ class BW4TWorld:
                 # Get the block's name
                 name = f"Block in {room_name}"
 
-                # Get the probability for adding a block so we get the on average the requested number of blocks per room
-                prob = min(1.0, self._worldsettings['average_blocks_per_room'] / len(locations))
-
                 # Create a MATRX random property of shape and color so each block varies per created world.
                 # These random property objects are used to obtain a certain value each time a new world is
                 # created from this builder.
                 colour_property = self._worldsettings['block_colors'][random.randint(0, 2)]
                 shape_property = self._worldsettings['block_shapes'][random.randint(0, 2)]
 
+                prob = 0
+                if random.random() < self._worldsettings['average_blocks_per_room'] / len(locations):
+                    prob = 1.0
+                    self._generated_blocks.append({"colour": colour_property, "shape": shape_property})
+
                 # Add the block; a regular SquareBlock as denoted by the given 'callable_class' which the
                 # builder will use to create the object. In addition to setting MATRX properties, we also
                 # provide a `is_block` boolean as custom property so we can identify this as a collectible
                 # block.
                 self._builder.add_object_prospect(loc, name,
-                    callable_class=CollectableBlock, probability=prob,
-                    visualize_shape=shape_property, visualize_colour=colour_property,
-                    block_size=self._worldsettings['block_size'])
+                                                  callable_class=CollectableBlock, probability=prob,
+                                                  visualize_shape=shape_property, visualize_colour=colour_property,
+                                                  block_size=self._worldsettings['block_size'])
 
     def _addAgents(self):
         '''
@@ -260,9 +267,18 @@ class BW4TWorld:
 
             # Go through all needed blocks
             for nr_block in range(self._worldsettings['nr_blocks_needed']):
-                # Create a MATRX random property of shape and color so each world contains different blocks to collect
-                colour_property = self._worldsettings['block_colors'][random.randint(0, 2)]
-                shape_property = self._worldsettings['block_shapes'][random.randint(0, 2)]
+
+                if self._only_completable:
+                    # Choose random generated block as goal block
+                    idx = random.randint(0, len(self._generated_blocks) - 1)
+                    colour_property = self._generated_blocks[idx]["colour"]
+                    shape_property = self._generated_blocks[idx]["shape"]
+                    # Remove block from temp array
+                    self._generated_blocks.pop(idx)
+                else:
+                    # Create a MATRX random property of shape and color so each world contains different blocks to collect
+                    colour_property = self._worldsettings['block_colors'][random.randint(0, 2)]
+                    shape_property = self._worldsettings['block_shapes'][random.randint(0, 2)]
 
                 # Add a 'ghost image' of the block that should be collected. This can be seen by both humans and agents to
                 # know what should be collected in what order.
