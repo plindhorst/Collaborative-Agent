@@ -47,7 +47,7 @@ class Trust:
         agents = self._get_trust()
         for agent in agents:
             if agent["agent_id"] == agent_id:
-                avg = (agent['drop_off'] + agent['room_search'] + agent['found_goal']) / 3
+                avg = (float(agent['drop_off']) + float(agent['room_search']) + float(agent['found_goal'])) / 3
                 return avg > 0
 
     # Update trust based on agent_id, action (header) and value
