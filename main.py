@@ -155,13 +155,12 @@ if __name__ == "__main__":
         for round_ in results:
             if round_.isSucces():
                 completion += 1
-                ticks.append(round_.getLastTick())
+                ticks.append(int(round_.getLastTick()))
                 agent_drops = round_.getDrops()
                 for agent_name in agent_drops:
                     drops[agent_name] += agent_drops[agent_name]
 
         sum_drops = 0
-
         for agent_name in drops:
             sum_drops += drops[agent_name]
 

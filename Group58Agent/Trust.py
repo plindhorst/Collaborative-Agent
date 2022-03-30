@@ -40,7 +40,7 @@ class Trust:
         agents = self._get_trust()
         for agent in agents:
             if agent["agent_id"] == agent_id:
-                return float(agent[action]) < TRUST_POINTS[action][3]
+                return TRUST_POINTS[action][3] < float(agent[action])
 
     # Returns true if we can trust an agent overall
     def _can_trust_overall(self, agent_id):
