@@ -3,12 +3,12 @@ import csv
 import os
 import time
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from Group58Agent.Group58Agent import Group58Agent
 from bw4t.BW4TWorld import BW4TWorld, DEFAULT_WORLDSETTINGS
 from bw4t.statistics import Statistics
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 """
 This runs a single session. You have to log in on localhost:3000 and
@@ -66,7 +66,6 @@ def append_trust_round(agents_, trust_, trust_all_):
                                 agent_trust_[agent_name][round_idx] += float(trust_other[action_name])
 
 
-
 if __name__ == "__main__":
     agents = [
         {
@@ -99,7 +98,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-tournament", action='store_true', help="Are we going to run multiple times",
                         default=False)
-    parser.add_argument("-visualizer", action='store_true', help="Hide web visualizer", default=False)
+    parser.add_argument("-visualizer", action='store_true', help="Show web visualizer", default=False)
     parser.add_argument("-n", action='store', help="How many times to run", default=10, type=int)
 
     args = parser.parse_args()
@@ -111,9 +110,9 @@ if __name__ == "__main__":
 
         start = time.time()
         if args.visualizer:
-            print("Running " + str(args.n) + " times. (no visualizer)")
-        else:
             print("Running " + str(args.n) + " times.")
+        else:
+            print("Running " + str(args.n) + " times. (no visualizer)")
         results = []
 
         # Initialize trust array
@@ -128,7 +127,8 @@ if __name__ == "__main__":
         world_settings = DEFAULT_WORLDSETTINGS
         world_settings["tick_duration"] = 0.025
         world_settings["matrx_paused"] = False
-        if args.visualizer:
+        if not args.visualizer:
+            world_settings["deadline"] = 1000
             world_settings["tick_duration"] = 0
             world_settings["run_matrx_api"] = False
             world_settings["run_matrx_visualizer"] = False
@@ -145,6 +145,44 @@ if __name__ == "__main__":
 
         minutes, seconds = divmod(divmod(time.time() - start, 3600)[1], 60)
         print("\n### DONE!", "({:0>2}:{:05.2f}".format(int(minutes), seconds) + ") ###\n")
+
+        ticks = []
+
+        drops = {}
+        for agent in agents:
+            drops[agent["name"]] = 0
+        completion = 0
+        for round_ in results:
+            if round_.isSucces() == "True":
+                completion += 1
+                ticks.append(int(round_.getLastTick()))
+                agent_drops = round_.getDrops()
+                for agent_name in agent_drops:
+                    drops[agent_name] += agent_drops[agent_name]
+
+        sum_drops = 0
+        for agent_name in drops:
+            sum_drops += drops[agent_name]
+
+        drops_string = "Drops Percentages:\n"
+        for agent in agents:
+            drops_string += "* " + agent["name"] + ": " + str(round(drops[agent["name"]] * 100 / sum_drops, 2)) + "%\n"
+        print(drops_string)
+
+        print("Success rate: " + str(round(completion * 100 / len(results), 2)) + "%")
+
+        # Plot statistics graph
+        fig = plt.gcf()
+        x = np.arange(len(ticks))
+        plt.plot(x, ticks, label="ticks")
+        plt.xticks(x)
+        plt.xlabel("Rounds")
+        plt.ylabel("")
+        plt.title("Ticks per Round")
+        plt.legend()
+        fig.set_size_inches(20, 10)
+        plt.savefig("./results/statistics.png", bbox_inches="tight")
+        plt.close(fig)
 
         # Get min and max values
         max_ = -np.inf
@@ -201,7 +239,6 @@ if __name__ == "__main__":
             fig.set_size_inches(20, 10)
             plt.savefig("./results/" + agents[i]["name"] + ".png", bbox_inches="tight")
             plt.close(fig)
-
     else:
         print("Started world...")
         world = BW4TWorld(agents).run()

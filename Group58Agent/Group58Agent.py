@@ -149,8 +149,8 @@ class Group58Agent(BW4TBrain):
 
     # Return true if block matches drop off
     def matches_drop_off(self, block, drop_off_n):
-        return not (block is None or self.drop_offs[drop_off_n]["colour"] != block["colour"] \
-                    or self.drop_offs[drop_off_n]["shape"] != block["shape"])
+        return block is not None and self.drop_offs[drop_off_n]["colour"] == block["colour"] and \
+               self.drop_offs[drop_off_n]["shape"] == block["shape"]
 
     # Update the positions of all agents
     def _update_agent_locations(self):
@@ -373,6 +373,9 @@ class Group58Agent(BW4TBrain):
                     return GrabObject.__name__, {"object_id": goal_block["obj_id"]}
 
                 else:
+                    # Lower trust of agent that said goal block was at location.
+                    self.trust_model.decrease_found_goal(goal_block["found_by"])
+                    self.msg_handler.send_decrease_trust_value(goal_block["found_by"], "found_goal")
                     # Tell others that we found a block
                     goal_block["found_by"] = self.agent_id
                     self.msg_handler.send_found_goal_block(goal_block)
@@ -383,8 +386,6 @@ class Group58Agent(BW4TBrain):
                     self.phase = Phase.CHOOSE_GOAL
                     # Reset grabbed
                     self.drop_offs[goal_block["drop_off_n"]]["grabbed"] = False
-                    # Lower trust of agent that said goal block was at location.
-                    self.trust_model.decrease_found_goal(goal_block["found_by"])
                     return None, {}
             else:
                 return move_to(self, goal_block["location"])

@@ -2,7 +2,7 @@ import csv
 import os
 
 TRUST_FOLDER = "./trust/"
-TRUST_POINTS = {"drop_off": [5.0, -2.0, 2.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
+TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
                 "found_goal": [5.0, -3.0, 3.0, 0.0]}
 
 
@@ -40,7 +40,15 @@ class Trust:
         agents = self._get_trust()
         for agent in agents:
             if agent["agent_id"] == agent_id:
-                return agent[action] < TRUST_POINTS[action][3]
+                return TRUST_POINTS[action][3] < float(agent[action])
+
+    # Returns true if we can trust an agent overall
+    def _can_trust_overall(self, agent_id):
+        agents = self._get_trust()
+        for agent in agents:
+            if agent["agent_id"] == agent_id:
+                avg = (float(agent['drop_off']) + float(agent['room_search']) + float(agent['found_goal'])) / 3
+                return avg > 0
 
     # Update trust based on agent_id, action (header) and value
     def _update_trust(self, agent_id, action, value):

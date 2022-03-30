@@ -91,6 +91,9 @@ class Statistics:
             if header.endswith("_acts"):
                 agents.append(header[:len(header)-5])
         return agents
+
+    def getDrops(self):
+        return self._drops
                 
     
     def __str__(self):
