@@ -153,7 +153,7 @@ if __name__ == "__main__":
             drops[agent["name"]] = 0
         completion = 0
         for round_ in results:
-            if round_.isSucces():
+            if round_.isSucces() == "True":
                 completion += 1
                 ticks.append(int(round_.getLastTick()))
                 agent_drops = round_.getDrops()
