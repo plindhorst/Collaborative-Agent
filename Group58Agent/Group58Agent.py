@@ -248,11 +248,6 @@ class Group58Agent(BW4TBrain):
             # Are we going to lie that we found a goal block
             if self.lie():
                 lie = True
-                # Check if no other goal block is on (1, 1)
-                for found_block in self.found_goal_blocks:
-                    if found_block["location"] == (1, 1):
-                        lie = False
-                        break
                 if lie and self.lied_goal_n < len(self.drop_offs):
                     # Send current goal block to all other agents at start position
                     self.msg_handler.send_found_goal_block(
@@ -261,6 +256,8 @@ class Group58Agent(BW4TBrain):
                          "location": (1, 1),
                          "size": self.drop_offs[self.lied_goal_n]["size"]})
                     self.lied_goal_n += 1
+
+                    self.phase = Phase.CHOOSE_ROOM
                 # Open door
             return OpenDoorAction.__name__, {"object_id": self._chosen_room["obj_id"]}
 
@@ -333,6 +330,9 @@ class Group58Agent(BW4TBrain):
 
                 # Check if block is on location
                 if block is None:
+                    # Lower trust of agent that said goal block was at location.
+                    self.trust_model.decrease_found_goal(goal_block["found_by"])
+                    self.msg_handler.send_decrease_trust_value(goal_block["found_by"], "found_goal")
                     del self._chosen_goal_blocks[-1]
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}

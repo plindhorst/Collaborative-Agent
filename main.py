@@ -174,8 +174,13 @@ if __name__ == "__main__":
         # Plot statistics graph
         fig = plt.gcf()
         x = np.arange(len(ticks))
+
+        coef = np.polyfit(x, ticks, 1)
+        poly1d_fn = np.poly1d(coef)
+        plt.plot(x, poly1d_fn(x), "--k", label="regression line")
+
         plt.plot(x, ticks, label="ticks", linewidth=3, marker="o")
-        plt.xticks(x)
+        plt.xticks([np.min(x), np.max(x)])
         plt.xlabel("Rounds")
         plt.ylabel("")
         plt.title("Ticks per Round")
