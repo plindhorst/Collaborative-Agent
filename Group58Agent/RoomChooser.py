@@ -18,7 +18,7 @@ class RoomChooser:
             unvisited = self._get_unvisited_by_me()
             if len(unvisited) == 0:
                 # All rooms were visited by us
-                return None, None
+                return None
         # order rooms by distance
         for room in unvisited:
             start_location = self.agent.state[agent_id]["location"]
@@ -36,8 +36,7 @@ class RoomChooser:
         else:
             return sorted(unvisited, key=lambda x: (x["distance"]))[0]
 
-        # Returns true if another agent chose this room and is closer to it
-
+    # Returns true if another agent chose this room and is closer to it
     def room_conflict(self, room):
         # Go over all other agents, if we chose the same room take the one closest to it.
         # In case of draw choose smallest agent_idx

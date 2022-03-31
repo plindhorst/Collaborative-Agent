@@ -198,14 +198,19 @@ class Group58Agent(BW4TBrain):
                 self._chosen_room = room
                 self.phase = Phase.GO_TO_ROOM
                 # Inform other agents that we are going to the room
-                self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
+                # Mark room as visited
+                room = self.get_room(self._chosen_room["room_name"])
+                room["visited"] = True
+                room["visited_by_me"] = True
+
+                self.msg_handler.send_moving_to_room(room["room_name"])
                 # Are we going to lazy/lie skip during moving to room
                 self.skip_move_to_room = (self.lazy_skip() or self.lie()) and not self.room_chooser.all_rooms_visited()
 
                 # Store path length to room
                 self._path_length_move_to_room = len(
-                    path(self.agent_id, self.state, self.location, self._chosen_room["location"]))
-                return move_to(self, self._chosen_room["location"])
+                    path(self.agent_id, self.state, self.location, room["location"]))
+                return move_to(self, room["location"])
 
         # Going to a room
         elif self.phase_handler.phase_is(Phase.GO_TO_ROOM):

@@ -23,6 +23,12 @@ class MessageHandler:
 
     # What to update when receiving a move to message
     def _process_move_to(self, msg):
+        # Mark room as visited
+        room_name = msg.content.replace("Moving to ", "")
+        room = self.agent.get_room(room_name)
+        room["visited"] = True
+        room["last_visited_id"] = msg.from_id
+
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.GO_TO_ROOM)
 

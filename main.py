@@ -174,13 +174,14 @@ if __name__ == "__main__":
         # Plot statistics graph
         fig = plt.gcf()
         x = np.arange(len(ticks))
-        plt.plot(x, ticks, label="ticks")
+        plt.plot(x, ticks, label="ticks", linewidth=3, marker="o")
         plt.xticks(x)
         plt.xlabel("Rounds")
         plt.ylabel("")
         plt.title("Ticks per Round")
         plt.legend()
         fig.set_size_inches(20, 10)
+        plt.rc("font", **{"size": 22})
         plt.savefig("./results/statistics.png", bbox_inches="tight")
         plt.close(fig)
 
@@ -201,42 +202,55 @@ if __name__ == "__main__":
             if min_ > new_min_:
                 min_ = new_min_
 
+        max_ /= (len(agents) - 1)
+        min_ /= (len(agents) - 1)
+
         fig = plt.gcf()
-        plt.scatter(0, min_ / (len(agents) - 1), s=0)
-        plt.scatter(0, max_ / (len(agents) - 1), s=0)
+        plt.scatter(0, min_, s=0)
+        plt.scatter(0, max_, s=0)
         x = np.arange(args.n + 1)
 
-        for i, agent in enumerate(agents):
-            plt.plot(x, [y / (len(agents) - 1) for y in trust_all[i][agent["name"]]], label=agent["name"])
+        for i, agent_trust in enumerate(trust):
+            trust_sum = []
 
-        plt.xticks(x)
+            for j, y in enumerate(agent_trust[agents[i]["name"]][0]["drop_off"]):
+                trust_sum.append(np.mean([y, agent_trust[agents[i]["name"]][1]["found_goal"][j],
+                                          agent_trust[agents[i]["name"]][2]["room_search"][j]]))
+
+            plt.plot(x, [y / (len(agents) - 1) for y in trust_sum], label=agents[i]["name"], linewidth=3,
+                     marker="o")
+
+        plt.xticks([np.min(x), np.max(x)])
         plt.xlabel("Rounds")
         plt.ylabel("Trust")
         plt.title("Average Trustworthiness")
         plt.legend()
         fig.set_size_inches(20, 10)
+        plt.rc("font", **{"size": 22})
         plt.savefig("./results/all_agents.png", bbox_inches="tight")
         plt.close(fig)
 
         for i, agent_trust in enumerate(trust):
             fig = plt.gcf()
-            plt.scatter(0, min_ / (len(agents) - 1), s=0)
-            plt.scatter(0, max_ / (len(agents) - 1), s=0)
+            plt.scatter(0, min_, s=0)
+            plt.scatter(0, max_, s=0)
             x = np.arange(args.n + 1)
 
             plt.plot(x, [y / (len(agents) - 1) for y in agent_trust[agents[i]["name"]][0]["drop_off"]], c="green",
-                     label="drop_off")
+                     label="drop_off", linewidth=3, marker="o")
             plt.plot(x, [y / (len(agents) - 1) for y in agent_trust[agents[i]["name"]][1]["found_goal"]], c="blue",
-                     label="found_goal")
+                     label="found_goal", linewidth=3, marker="o")
             plt.plot(x, [y / (len(agents) - 1) for y in agent_trust[agents[i]["name"]][2]["room_search"]], c="red",
-                     label="room_search")
+                     label="room_search", linewidth=3, marker="o")
 
-            plt.xticks(x)
+            plt.xticks([np.min(x), np.max(x)])
+            plt.yticks([min_, 0, max_])
             plt.xlabel("Rounds")
             plt.ylabel("Trust")
             plt.title("Trustworthiness of '" + agents[i]["name"] + "'")
             plt.legend()
             fig.set_size_inches(20, 10)
+            plt.rc("font", **{"size": 22})
             plt.savefig("./results/" + agents[i]["name"] + ".png", bbox_inches="tight")
             plt.close(fig)
     else:
