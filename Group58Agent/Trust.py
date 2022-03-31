@@ -2,8 +2,8 @@ import csv
 import os
 
 TRUST_FOLDER = "./trust/"
-TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.0, 0.0], "room_search": [5.0, -1.0, 1.0, 0.0],
-                "found_goal": [5.0, -3.0, 3.0, 0.0]}
+TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.5, 0.0], "room_search": [5.0, -1.0, 2.0, 0.0],
+                "found_goal": [5.0, -1.0, 1.0, 0.0]}
 
 
 # initial value, deacrease, increase, trust threshold
@@ -43,7 +43,7 @@ class Trust:
                 return TRUST_POINTS[action][3] < float(agent[action])
 
     # Returns true if we can trust an agent overall
-    def _can_trust_overall(self, agent_id):
+    def can_trust_overall(self, agent_id):
         agents = self._get_trust()
         for agent in agents:
             if agent["agent_id"] == agent_id:
@@ -102,8 +102,11 @@ class Trust:
     def increase_found_goal(self, agent_id):
         self._update_trust(agent_id, "found_goal", TRUST_POINTS["found_goal"][2])
 
-    def can_trust_room_search(self, agent_id):
-        return self._can_trust(agent_id, "room_search")
+    def get_value_room_search(self, agent_id):
+        agents = self._get_trust()
+        for agent in agents:
+            if agent["agent_id"] == agent_id:
+                return float(agent["room_search"])
 
     # Decrease room search trust
     def decrease_room_search(self, agent_id):

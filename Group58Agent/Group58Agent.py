@@ -179,7 +179,7 @@ class Group58Agent(BW4TBrain):
         # Choosing a room
         if self.phase_handler.phase_is(Phase.CHOOSE_ROOM):
             # Get closest room and distance to it
-            room, distance = self.room_chooser.choose_room(self.agent_id)
+            room = self.room_chooser.choose_room(self.agent_id)
 
             # All rooms have been visited
             if room is None:
@@ -190,18 +190,13 @@ class Group58Agent(BW4TBrain):
                 return None, {}
 
             # Check if we are the closest agent (with phase CHOOSE_ROOM) to the room
-            if self.room_chooser.room_conflict(room, distance):
+            if self.room_chooser.room_conflict(room):
                 # Continue with phase CHOOSE_ROOM
                 return None, {}
             else:
                 # We go to the room
                 self._chosen_room = room
                 self.phase = Phase.GO_TO_ROOM
-                # Mark room as visited
-                room = self.get_room(self._chosen_room["room_name"])
-                room["visited"] = True
-                room["visited_by_me"] = True
-                room["last_agent_id"] = self.agent_id
                 # Inform other agents that we are going to the room
                 self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
                 # Are we going to lazy/lie skip during moving to room
@@ -244,6 +239,7 @@ class Group58Agent(BW4TBrain):
             if self.skip_room_search:
                 # Mark visited_by_me as False since we didnt fully visit the room
                 self.get_room(self._chosen_room["room_name"])["visited_by_me"] = False
+
             # Are we going to lie that we found a goal block
             if self.lie():
                 lie = True
