@@ -179,7 +179,7 @@ class Group58Agent(BW4TBrain):
         # Choosing a room
         if self.phase_handler.phase_is(Phase.CHOOSE_ROOM):
             # Get closest room and distance to it
-            room, distance = self.room_chooser.choose_room(self.agent_id)
+            room = self.room_chooser.choose_room(self.agent_id)
 
             # All rooms have been visited
             if room is None:
@@ -190,27 +190,27 @@ class Group58Agent(BW4TBrain):
                 return None, {}
 
             # Check if we are the closest agent (with phase CHOOSE_ROOM) to the room
-            if self.room_chooser.room_conflict(room, distance):
+            if self.room_chooser.room_conflict(room):
                 # Continue with phase CHOOSE_ROOM
                 return None, {}
             else:
                 # We go to the room
                 self._chosen_room = room
                 self.phase = Phase.GO_TO_ROOM
+                # Inform other agents that we are going to the room
                 # Mark room as visited
                 room = self.get_room(self._chosen_room["room_name"])
                 room["visited"] = True
                 room["visited_by_me"] = True
-                room["last_agent_id"] = self.agent_id
-                # Inform other agents that we are going to the room
-                self.msg_handler.send_moving_to_room(self._chosen_room["room_name"])
+
+                self.msg_handler.send_moving_to_room(room["room_name"])
                 # Are we going to lazy/lie skip during moving to room
                 self.skip_move_to_room = (self.lazy_skip() or self.lie()) and not self.room_chooser.all_rooms_visited()
 
                 # Store path length to room
                 self._path_length_move_to_room = len(
-                    path(self.agent_id, self.state, self.location, self._chosen_room["location"]))
-                return move_to(self, self._chosen_room["location"])
+                    path(self.agent_id, self.state, self.location, room["location"]))
+                return move_to(self, room["location"])
 
         # Going to a room
         elif self.phase_handler.phase_is(Phase.GO_TO_ROOM):
@@ -244,14 +244,10 @@ class Group58Agent(BW4TBrain):
             if self.skip_room_search:
                 # Mark visited_by_me as False since we didnt fully visit the room
                 self.get_room(self._chosen_room["room_name"])["visited_by_me"] = False
+
             # Are we going to lie that we found a goal block
             if self.lie():
                 lie = True
-                # Check if no other goal block is on (1, 1)
-                for found_block in self.found_goal_blocks:
-                    if found_block["location"] == (1, 1):
-                        lie = False
-                        break
                 if lie and self.lied_goal_n < len(self.drop_offs):
                     # Send current goal block to all other agents at start position
                     self.msg_handler.send_found_goal_block(
@@ -260,6 +256,8 @@ class Group58Agent(BW4TBrain):
                          "location": (1, 1),
                          "size": self.drop_offs[self.lied_goal_n]["size"]})
                     self.lied_goal_n += 1
+
+                    self.phase = Phase.CHOOSE_ROOM
                 # Open door
             return OpenDoorAction.__name__, {"object_id": self._chosen_room["obj_id"]}
 
@@ -332,6 +330,9 @@ class Group58Agent(BW4TBrain):
 
                 # Check if block is on location
                 if block is None:
+                    # Lower trust of agent that said goal block was at location.
+                    self.trust_model.decrease_found_goal(goal_block["found_by"])
+                    self.msg_handler.send_decrease_trust_value(goal_block["found_by"], "found_goal")
                     del self._chosen_goal_blocks[-1]
                     self.phase = Phase.CHOOSE_GOAL
                     return None, {}

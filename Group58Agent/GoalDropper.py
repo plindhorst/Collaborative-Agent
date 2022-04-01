@@ -44,9 +44,11 @@ class GoalDropper:
     def grab_conflict(self, goal_block, distance):
         # Go over all other agents, if we chose the same block take the one closest to it.
         # In case of draw choose smallest agent_idx
+        # Ignore agents that have low trust values for drop off
         for other_agent in self.agent.other_agents:
             if (
                     other_agent["phase"] == "CHOOSE_GOAL"
+                    and self.agent.trust_model.can_trust_drop_off(other_agent["agent_id"])
                     and other_agent["location"] is not None
             ):
                 other_goal_block, other_distance = self.find_goal_block(

@@ -23,14 +23,14 @@ class MessageHandler:
 
     # What to update when receiving a move to message
     def _process_move_to(self, msg):
-        # Update sender agent phase
-        self._update_other_agent_phase(msg.from_id, Phase.GO_TO_ROOM)
-
         # Mark room as visited
         room_name = msg.content.replace("Moving to ", "")
         room = self.agent.get_room(room_name)
         room["visited"] = True
         room["last_visited_id"] = msg.from_id
+
+        # Update sender agent phase
+        self._update_other_agent_phase(msg.from_id, Phase.GO_TO_ROOM)
 
     # What to update when receiving a open door message
     def _process_opening_door(self, msg):
@@ -39,6 +39,11 @@ class MessageHandler:
 
     # What to update when receiving a search room message
     def _process_searching(self, msg):
+        # Parse message content
+        room_name = msg.content[18:]
+        self.agent.get_room(room_name)["last_agent_id"] = msg.from_id
+        self.agent.get_room(room_name)["visited"] = True
+
         # Update sender agent phase
         self._update_other_agent_phase(msg.from_id, Phase.SEARCH_ROOM)
 
@@ -57,9 +62,9 @@ class MessageHandler:
         goal_block["location"] = (location[0], location[1])
         goal_block["found_by"] = msg.from_id
         # Add goal block to our agent's goal blocks
-        if  msg.from_id != self.agent.agent_id and \
-            self.agent.trust_model.can_trust_found_goal(msg.from_id) and \
-            goal_block not in self.agent.found_goal_blocks:
+        if msg.from_id != self.agent.agent_id and \
+                self.agent.trust_model.can_trust_found_goal(msg.from_id) and \
+                goal_block not in self.agent.found_goal_blocks:
             self.agent.found_goal_blocks.append(goal_block)
 
     # What to update when receiving a pickup block message
@@ -85,9 +90,9 @@ class MessageHandler:
 
         # Update drop off as grabbed
         next_drop_off = self.agent.get_next_drop_off()
-        if  msg.from_id != self.agent.agent_id and \
-            self.agent.trust_model.can_trust_drop_off(msg.from_id) and \
-            next_drop_off is not None:
+        if msg.from_id != self.agent.agent_id and \
+                self.agent.trust_model.can_trust_drop_off(msg.from_id) and \
+                next_drop_off is not None:
             next_drop_off["grabbed"] = True
 
     # What to update when receiving a drop block message
@@ -124,12 +129,12 @@ class MessageHandler:
             if not drop_off["delivered"] and drop_off["grabbed"]:
                 drop_off["grabbed"] = False
 
-    #What to update when receiving a decrease trust message
+    # What to update when receiving a decrease trust message
     def _process_decrease_trust_value(self, msg):
         trust = json.loads(
             msg.content[msg.content.index("{"): msg.content.index("}") + 1]
         )
-        if self.agent.trust_model._can_trust_overall(msg.from_id):
+        if self.agent.trust_model.can_trust_overall(msg.from_id):
             self.agent.trust_model._update_trust(trust["agent"], trust["action"], -1.0)
 
     # Go over received messages and perform updates

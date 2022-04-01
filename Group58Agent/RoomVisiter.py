@@ -30,6 +30,20 @@ class RoomVisiter:
                 else:
                     # We completed the room search
                     self.agent.phase = Phase.CHOOSE_GOAL
+
+                    # Check if previous agent did a good room search
+                    if self.agent.get_room(room["room_name"])["last_agent_id"] is not None\
+                            and self.agent.agent_id != self.agent.get_room(room["room_name"])["last_agent_id"]:
+                        # If we found goal blocks but another agent was here before he skipped the room search
+                        if len(self.found_goal_blocks) > 0:
+                            self.agent.trust_model.decrease_room_search(
+                                self.agent.get_room(room["room_name"])["last_agent_id"])
+                        else:
+                            self.agent.trust_model.increase_room_search(
+                                self.agent.get_room(room["room_name"])["last_agent_id"])
+
+                    self.agent.get_room(room["room_name"])["last_agent_id"] = self.agent.agent_id
+                    self.agent.get_room(room["room_name"])["visited_by_me"] = True
                     # Send goal blocks locations to other agents
                     for goal_block in self.found_goal_blocks:
                         # Add goal block to our agent's blocks
