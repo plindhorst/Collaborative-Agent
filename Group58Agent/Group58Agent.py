@@ -15,6 +15,10 @@ from matrx.messages import Message
 
 from bw4t.BW4TBrain import BW4TBrain
 
+TRUST_FOLDER = "./trust/"
+TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.1, 0.0], "room_search": [5.0, -1.0, 1.1, 0.0],
+                "found_goal": [5.0, -2, 1.0, 0.0]}  # initial value, decrease, increase, trust threshold
+
 
 class Group58Agent(BW4TBrain):
     def __init__(self, settings: Dict[str, object]):
@@ -974,11 +978,6 @@ class RoomVisiter:
                         if not _exists:
                             self.found_goal_blocks.append(block)
                         break
-
-TRUST_FOLDER = "./trust/"
-TRUST_POINTS = {"drop_off": [5.0, -1.0, 1.1, 0.0], "room_search": [5.0, -1.0, 1.1, 0.0],
-                "found_goal": [5.0, -2, 1.0, 0.0]}  # initial value, decrease, increase, trust threshold
-
 
 class Trust:
     def __init__(self, agent):
