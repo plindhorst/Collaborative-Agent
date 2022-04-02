@@ -6,7 +6,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Group58Agent.Group58Agent import Group58Agent
+from Group58Agent.Group58Agent import ColorblindAgent, LazyAgent, LiarAgent, StrongAgent
 from bw4t.BW4TWorld import BW4TWorld, DEFAULT_WORLDSETTINGS
 from bw4t.statistics import Statistics
 
@@ -70,27 +70,23 @@ if __name__ == "__main__":
     agents = [
         {
             "name": "lazy",
-            "botclass": Group58Agent,
-            "settings": {"color": "#FFFF00", "shape": 1, "strong": False, "colourblind": False, "lazy": True,
-                         "liar": False},
+            "botclass": LazyAgent,
+            "settings": {"color": "#FFFF00", "shape": 1},
         },
         {
             "name": "strong",
-            "botclass": Group58Agent,
-            "settings": {"color": "#0000FF", "shape": 2, "strong": True, "colourblind": False, "lazy": False,
-                         "liar": False},
+            "botclass": StrongAgent,
+            "settings": {"color": "#0000FF", "shape": 2},
         },
         {
             "name": "colourblind",
-            "botclass": Group58Agent,
-            "settings": {"color": "#000000", "shape": 1, "strong": False, "colourblind": True, "lazy": False,
-                         "liar": False},
+            "botclass": ColorblindAgent,
+            "settings": {"color": "#000000", "shape": 1},
         },
         {
             "name": "liar",
-            "botclass": Group58Agent,
-            "settings": {"color": "#FF0000", "shape": 1, "strong": False, "colourblind": False, "lazy": False,
-                         "liar": True},
+            "botclass": LiarAgent,
+            "settings": {"color": "#FF0000", "shape": 1},
         },
     ]
 
